@@ -2,26 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* No dark mode in v1 — the brand defines no dark palette. */
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-navaro-heath text-navaro-green font-sans font-light antialiased;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply font-medium leading-none;
+}
+
+::selection {
+  background-color: #d8f1e7; /* navaro-turquoiseTint */
+  color: #054742;
+}
+
+:focus-visible {
+  outline: 2px solid #054742;
+  outline-offset: 2px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }

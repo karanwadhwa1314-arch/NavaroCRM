@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run",
+    "seed": "tsx scripts/seed.ts",
+    "seed:demo": "tsx scripts/seed.ts --demo",
+    "db:sync-indexes": "tsx scripts/sync-indexes.ts",
+    "brand:prepare": "tsx scripts/prepare-brand-assets.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
@@ -15,7 +20,7 @@
     "date-fns": "^4.4.0",
     "jose": "^6.2.12",
     "lucide-react": "^1.48.0",
-    "mongoose": "^9.10.2",
+    "mongoose": "^8.24.4",
     "next": "^14.2.35",
     "react": "^18",
     "react-dom": "^18",
@@ -24,13 +29,18 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",
     "eslint-config-next": "14.2.15",
+    "mongodb-memory-server": "^11.3.0",
     "postcss": "^8",
+    "sharp": "^0.35.4",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^2.1.9"
   }
 }
