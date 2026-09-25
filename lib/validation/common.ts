@@ -19,8 +19,7 @@ export const tagsSchema = z
 
 /**
  * A sort-field whitelist that never fails validation: an unknown or missing
- * value silently falls back to `fallback` instead of 400ing the request
- * (defect #5 — FLARES' buildSort accepted any field name).
+ * value silently falls back to `fallback` instead of 400ing the request.
  */
 export function fallbackEnum<T extends readonly [string, ...string[]]>(values: T, fallback: T[number]) {
   return z.preprocess(
