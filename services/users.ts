@@ -216,6 +216,16 @@ export async function setStatus(actor: SessionUser, id: string, isActive: boolea
   return serialize(user);
 }
 
+export async function stats() {
+  const [total, active, superadmins, admins] = await Promise.all([
+    User.countDocuments({}),
+    User.countDocuments({ isActive: true }),
+    User.countDocuments({ role: 'superadmin' }),
+    User.countDocuments({ role: 'admin' }),
+  ]);
+  return { total, active, superadmins, admins };
+}
+
 export async function remove(actor: SessionUser, id: string): Promise<void> {
   if (id === actor.id) throw new AppError(400, 'You cannot delete your own account');
 

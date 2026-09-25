@@ -9,6 +9,7 @@ import { PipelineBars } from '@/components/dashboard/PipelineBars';
 import { SourceBars } from '@/components/dashboard/SourceBars';
 import { RecentLeads } from '@/components/dashboard/RecentLeads';
 import { SetPageTitle } from '@/components/layout/PageHeaderContext';
+import { ForbiddenToast } from '@/components/layout/ForbiddenToast';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,7 @@ export default async function DashboardPage() {
   return (
     <>
       <SetPageTitle title="Dashboard" />
+      <ForbiddenToast />
       <h1 className="mb-6 text-h1 text-navaro-green">
         {greeting()}, {user.firstName}
       </h1>
