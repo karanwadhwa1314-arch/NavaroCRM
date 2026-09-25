@@ -1,4 +1,3 @@
-import 'server-only';
 import User, { type UserDocument } from '@/models/User';
 import AuditLog from '@/models/AuditLog';
 import { comparePassword } from '@/lib/auth/password';

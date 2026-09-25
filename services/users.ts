@@ -1,4 +1,3 @@
-import 'server-only';
 import User, { type UserDocument } from '@/models/User';
 import Lead from '@/models/Lead';
 import Client from '@/models/Client';

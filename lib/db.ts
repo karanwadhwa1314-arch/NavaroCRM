@@ -1,4 +1,3 @@
-import 'server-only';
 import mongoose from 'mongoose';
 
 declare global {

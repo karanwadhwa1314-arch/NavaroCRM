@@ -8,9 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "seed": "tsx scripts/seed.ts",
-    "seed:demo": "tsx scripts/seed.ts --demo",
-    "db:sync-indexes": "tsx scripts/sync-indexes.ts",
+    "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "seed:demo": "tsx --env-file=.env.local scripts/seed.ts --demo",
+    "db:sync-indexes": "tsx --env-file=.env.local scripts/sync-indexes.ts",
     "brand:prepare": "tsx scripts/prepare-brand-assets.ts"
   },
   "dependencies": {
@@ -26,6 +26,7 @@
     "react-dom": "^18",
     "react-hot-toast": "^2.6.1",
     "resend": "^6.29.0",
+    "server-only": "^0.0.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {

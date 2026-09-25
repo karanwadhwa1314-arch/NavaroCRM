@@ -1,7 +1,7 @@
-import 'server-only';
 import Lead from '@/models/Lead';
 import Client from '@/models/Client';
-import { hasPermission, type SessionUser } from '@/lib/auth/session';
+import { hasPermission } from '@/lib/permissions';
+import type { SessionUser } from '@/lib/auth/session';
 import { serializeLead } from '@/services/leads';
 
 function startOfMonth(): Date {

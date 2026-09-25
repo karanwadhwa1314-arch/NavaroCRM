@@ -1,4 +1,3 @@
-import 'server-only';
 import mongoose from 'mongoose';
 import Client, { type ClientDocument } from '@/models/Client';
 import Lead from '@/models/Lead';

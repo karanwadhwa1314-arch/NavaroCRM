@@ -1,4 +1,3 @@
-import 'server-only';
 import mongoose, { Schema, type Model, type Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { USER_ROLES, type UserRole } from '@/lib/constants';

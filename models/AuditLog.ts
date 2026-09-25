@@ -1,4 +1,3 @@
-import 'server-only';
 import mongoose, { Schema, type Model, type Document, type Types } from 'mongoose';
 import { AUDIT_ACTIONS, AUDIT_ENTITIES, type AuditAction, type AuditEntity } from '@/lib/constants';
 
