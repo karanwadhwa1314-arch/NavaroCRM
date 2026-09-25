@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CLIENT_STATUSES, CLIENT_TIERS, CLIENT_SOURCES_USER_SELECTABLE, COMPANY_SIZES, CURRENCIES } from '@/lib/constants';
-import { emptyToUndefined, nullableObjectId, tagsSchema } from '@/lib/validation/common';
+import { emptyToUndefined, fallbackEnum, limitSchema, nullableObjectId, pageSchema, tagsSchema } from '@/lib/validation/common';
 
 const addressSchema = z
   .object({
@@ -102,14 +102,14 @@ export const updateClientSchema = z
 export type UpdateClientInput = z.infer<typeof updateClientSchema>;
 
 export const clientListQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: pageSchema,
+  limit: limitSchema(),
   search: z.string().trim().max(100).optional(),
   status: z.enum(CLIENT_STATUSES).optional(),
   tier: z.enum(CLIENT_TIERS).optional(),
   accountManager: z.string().optional(),
   industry: z.string().trim().max(100).optional(),
-  sort: z.enum(['createdAt', 'updatedAt', 'companyName', 'status', 'tier']).default('createdAt'),
+  sort: fallbackEnum(['createdAt', 'updatedAt', 'companyName', 'status', 'tier'], 'createdAt'),
   order: z.enum(['asc', 'desc']).default('desc'),
 });
 export type ClientListQuery = z.infer<typeof clientListQuerySchema>;

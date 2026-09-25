@@ -8,7 +8,7 @@ import {
   CURRENCIES,
   USER_ADDABLE_ACTIVITY_TYPES,
 } from '@/lib/constants';
-import { emptyToUndefined, nullableObjectId, tagsSchema } from '@/lib/validation/common';
+import { emptyToUndefined, fallbackEnum, limitSchema, nullableObjectId, pageSchema, tagsSchema } from '@/lib/validation/common';
 
 const estimatedBudgetSchema = z
   .object({
@@ -71,8 +71,8 @@ export const addLeadActivitySchema = z.object({
 export type AddLeadActivityInput = z.infer<typeof addLeadActivitySchema>;
 
 export const leadListQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: pageSchema,
+  limit: limitSchema(),
   search: z.string().trim().max(100).optional(),
   stage: z.enum(LEAD_STAGES).optional(),
   source: z.enum(LEAD_SOURCES).optional(),
@@ -81,7 +81,7 @@ export const leadListQuerySchema = z.object({
   createdFrom: z.string().datetime({ offset: true }).optional().or(z.string().date().optional()),
   createdTo: z.string().datetime({ offset: true }).optional().or(z.string().date().optional()),
   converted: z.enum(['true', 'false']).optional(),
-  sort: z.enum(['createdAt', 'updatedAt', 'company', 'lastName', 'stage', 'priority']).default('createdAt'),
+  sort: fallbackEnum(['createdAt', 'updatedAt', 'company', 'lastName', 'stage', 'priority'], 'createdAt'),
   order: z.enum(['asc', 'desc']).default('desc'),
 });
 export type LeadListQuery = z.infer<typeof leadListQuerySchema>;

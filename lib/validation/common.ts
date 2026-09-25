@@ -17,10 +17,29 @@ export const tagsSchema = z
   .transform((tags) => Array.from(new Set(tags)))
   .optional();
 
-export const paginationQuery = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  search: z.string().max(100).optional(),
-  sort: z.string().optional(),
-  order: z.enum(['asc', 'desc']).optional(),
-});
+/**
+ * A sort-field whitelist that never fails validation: an unknown or missing
+ * value silently falls back to `fallback` instead of 400ing the request
+ * (defect #5 — FLARES' buildSort accepted any field name).
+ */
+export function fallbackEnum<T extends readonly [string, ...string[]]>(values: T, fallback: T[number]) {
+  return z.preprocess(
+    (v) => (typeof v === 'string' && (values as readonly string[]).includes(v) ? v : fallback),
+    z.enum(values)
+  );
+}
+
+/** `page` never 400s: non-numeric or below-1 values just clamp to 1. */
+export const pageSchema = z.preprocess((v) => {
+  const n = Math.trunc(Number(v));
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}, z.number().int().min(1)).default(1);
+
+/** `limit` never 400s: it's clamped into [1, max] instead of rejecting out-of-range values (defect #5). */
+export function limitSchema(max = 100, fallback = 20) {
+  return z.preprocess((v) => {
+    const n = Math.trunc(Number(v));
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(1, n));
+  }, z.number().int().min(1).max(max)).default(fallback);
+}

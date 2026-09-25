@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { USER_ROLES } from '@/lib/constants';
 import { PERMISSIONS } from '@/lib/permissions';
+import { fallbackEnum, limitSchema, pageSchema } from '@/lib/validation/common';
 
 const passwordSchema = z.string().min(8).max(72);
 
@@ -38,12 +39,12 @@ export const setStatusSchema = z.object({ isActive: z.boolean() });
 export type SetStatusInput = z.infer<typeof setStatusSchema>;
 
 export const userListQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: pageSchema,
+  limit: limitSchema(),
   search: z.string().trim().max(100).optional(),
   role: z.enum(USER_ROLES).optional(),
   isActive: z.enum(['true', 'false']).optional(),
-  sort: z.enum(['createdAt', 'firstName', 'lastName', 'lastLogin']).default('createdAt'),
+  sort: fallbackEnum(['createdAt', 'firstName', 'lastName', 'lastLogin'], 'createdAt'),
   order: z.enum(['asc', 'desc']).default('desc'),
 });
 export type UserListQuery = z.infer<typeof userListQuerySchema>;
