@@ -30,8 +30,8 @@ export function ActivityTimeline({ activities }: { activities: Activity[] }) {
         const Icon = ICONS[activity.type];
         return (
           <li key={activity._id ?? i} className="flex gap-3">
-            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navaro-hover">
-              <Icon className="h-3.5 w-3.5 text-navaro-green" strokeWidth={1.75} />
+            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navaro-green">
+              <Icon className="h-3.5 w-3.5 text-navaro-heath" strokeWidth={1.75} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm text-navaro-green">{activity.description}</p>

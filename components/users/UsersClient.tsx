@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useUrlNavigation } from '@/components/layout/UrlNavigation';
 import toast from 'react-hot-toast';
 import { Plus, Search, Users2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -32,6 +33,7 @@ export function UsersClient({ items, pagination, stats }: UsersClientProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { navigate } = useUrlNavigation();
 
   const [search, setSearch] = useState(searchParams.get('search') ?? '');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -53,7 +55,7 @@ export function UsersClient({ items, pagination, stats }: UsersClientProps) {
     if (value) params.set(key, value);
     else params.delete(key);
     params.set('page', '1');
-    router.replace(`${pathname}?${params.toString()}`);
+    navigate(`${pathname}?${params.toString()}`);
   }
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export function UsersClient({ items, pagination, stats }: UsersClientProps) {
   function updatePage(page: number) {
     const params = new URLSearchParams(searchParams.toString());
     params.set('page', String(page));
-    router.replace(`${pathname}?${params.toString()}`);
+    navigate(`${pathname}?${params.toString()}`);
   }
 
   async function handleCreate(values: UserFormValues) {

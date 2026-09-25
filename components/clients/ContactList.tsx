@@ -31,7 +31,7 @@ export function ContactList({ contacts, canEdit, onEdit, onDelete }: ContactList
           <div className="min-w-0">
             <p className="flex items-center gap-2 font-medium text-navaro-green">
               {contact.firstName} {contact.lastName}
-              {contact.isPrimary && <Badge tone="turquoise">Primary</Badge>}
+              {contact.isPrimary && <Badge tone="turquoiseSolid">Primary</Badge>}
             </p>
             {contact.jobTitle && <p className="text-label text-navaro-muted">{contact.jobTitle}</p>}
             <div className="mt-1 flex flex-wrap gap-x-4 text-label">

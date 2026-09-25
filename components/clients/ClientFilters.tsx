@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { useUrlNavigation } from '@/components/layout/UrlNavigation';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -16,9 +17,9 @@ interface AssignableUser {
 const FILTER_KEYS = ['search', 'status', 'tier', 'accountManager', 'industry'];
 
 export function ClientFilters({ users }: { users: AssignableUser[] }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { navigate } = useUrlNavigation();
   const [search, setSearch] = useState(searchParams.get('search') ?? '');
   const [industry, setIndustry] = useState(searchParams.get('industry') ?? '');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -28,7 +29,7 @@ export function ClientFilters({ users }: { users: AssignableUser[] }) {
     if (value) params.set(key, value);
     else params.delete(key);
     params.set('page', '1');
-    router.replace(`${pathname}?${params.toString()}`);
+    navigate(`${pathname}?${params.toString()}`);
   }
 
   useEffect(() => {
@@ -54,7 +55,7 @@ export function ClientFilters({ users }: { users: AssignableUser[] }) {
   function clearAll() {
     setSearch('');
     setIndustry('');
-    router.replace(pathname);
+    navigate(pathname);
   }
 
   return (

@@ -11,7 +11,6 @@ import type { LeadRow } from '@/components/leads/LeadTable';
 export const dynamic = 'force-dynamic';
 
 export default async function LeadsPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  const user = await requirePagePermission('leads.view');
   await connectDB();
 
   const flatParams = Object.fromEntries(
@@ -19,11 +18,14 @@ export default async function LeadsPage({ searchParams }: { searchParams: Record
   );
   const query = leadListQuerySchema.parse(flatParams);
 
-  const [{ items, total, page, limit }, stats, assignableUsers] = await Promise.all([
-    leadsService.list(user, query),
+  // Stats and assignees don't depend on the session lookup, so run them alongside it
+  // instead of after it; the list needs the actor (for assignedTo=me) and follows.
+  const [user, stats, assignableUsers] = await Promise.all([
+    requirePagePermission('leads.view'),
     leadsService.stats(),
     usersService.assignable(),
   ]);
+  const { items, total, page, limit } = await leadsService.list(user, query);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const pagination = {

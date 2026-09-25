@@ -16,7 +16,7 @@ export function PipelineBars({ byStage }: PipelineBarsProps) {
           <span className="w-24 shrink-0 text-label text-navaro-muted">{LEAD_STAGE_LABELS[stage]}</span>
           <div className="h-6 flex-1 overflow-hidden rounded-full bg-navaro-heath">
             <div
-              className={`flex h-full items-center justify-end rounded-r-full px-2 text-label font-medium text-navaro-heath ${
+              className={`flex h-full items-center justify-end rounded-r-full px-2 transition-[width,background-color] duration-500 ease-out motion-reduce:transition-none text-label font-medium text-navaro-heath ${
                 stage === biggest.stage && biggest.count > 0 ? 'bg-navaro-yellow text-navaro-green' : 'bg-navaro-green'
               }`}
               style={{ width: `${Math.max(6, (count / max) * 100)}%` }}

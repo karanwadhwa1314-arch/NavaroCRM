@@ -196,7 +196,7 @@ export function LeadDetailClient({ lead, assignableUsers }: { lead: LeadDetail; 
       </div>
 
       {isConverted && lead.convertedToClient && (
-        <div className="rounded-control bg-navaro-turquoiseTint px-4 py-3 text-sm text-navaro-green">
+        <div className="rounded-control bg-navaro-turquoise px-4 py-3 text-sm font-medium text-navaro-green">
           Converted to client {lead.convertedToClient.companyName} on {formatDate(lead.convertedAt)} ·{' '}
           <Link href={`/clients/${lead.convertedToClient._id}`} className="underline">
             View client

@@ -1,4 +1,5 @@
 import 'server-only';
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { connectDB } from '@/lib/db';
@@ -20,8 +21,11 @@ export interface SessionUser {
   lastLogin?: string;
 }
 
-/** Reads the cookie, verifies the JWT and reloads the user from the DB. Returns null if anything fails. */
-export async function getSessionUser(): Promise<SessionUser | null> {
+/**
+ * Reads the cookie, verifies the JWT and reloads the user from the DB. Returns null if anything fails.
+ * Memoised per request (React cache) so the (app) layout and the page share one DB lookup.
+ */
+export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const token = cookies().get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
@@ -45,7 +49,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     department: user.department,
     lastLogin: user.lastLogin ? user.lastLogin.toISOString() : undefined,
   };
-}
+});
 
 /** For server components/layouts. Redirects to /login when there is no valid session. */
 export async function requireUser(): Promise<SessionUser> {

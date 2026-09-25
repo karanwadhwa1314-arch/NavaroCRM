@@ -7,6 +7,8 @@ import { recordAudit } from '@/services/audit';
 import { serializeClient } from '@/services/clients';
 import { sendEmail, leadAssignedEmail } from '@/lib/email';
 import { isAdmin } from '@/lib/permissions';
+import { LEAD_SOURCES, type LeadSource } from '@/lib/constants';
+import { importLeadRowSchema } from '@/lib/validation/lead';
 import type { SessionUser } from '@/lib/auth/session';
 import type {
   CreateLeadInput,
@@ -14,6 +16,7 @@ import type {
   UpdateLeadStageInput,
   AddLeadActivityInput,
   LeadListQuery,
+  ImportLeadRow,
 } from '@/lib/validation/lead';
 
 const NAME_COLLATION = { locale: 'en', strength: 2 } as const;
@@ -457,4 +460,113 @@ function isDuplicateKeyError(err: unknown): err is MongoDuplicateKeyError {
 function isTransactionsUnsupportedError(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err);
   return /Transaction numbers are only allowed|replica set|IllegalOperation/i.test(message);
+}
+
+export interface ImportRowResult {
+  /** 1-based spreadsheet line number (header is line 1). */
+  line: number;
+  name: string;
+  email: string;
+  status: 'valid' | 'invalid' | 'duplicate';
+  reason?: string;
+}
+
+export interface ImportLeadsResult {
+  total: number;
+  valid: number;
+  invalid: number;
+  duplicates: number;
+  imported: number;
+  dryRun: boolean;
+  rows: ImportRowResult[];
+}
+
+function matchSource(raw?: string): LeadSource {
+  const n = (raw ?? '').toLowerCase().replace(/[^a-z]/g, '');
+  const hit = (LEAD_SOURCES as readonly string[]).find((s) => s.replace(/[^a-z]/g, '') === n);
+  return (hit as LeadSource | undefined) ?? 'other';
+}
+
+/**
+ * Validates every row, skips duplicates (same email as an active lead, or an earlier row
+ * in the same file), and — unless dryRun — persists the rest. Ownership follows create():
+ * non-admins own what they import; admins' imports start unassigned.
+ */
+export async function importLeads(actor: SessionUser, rawRows: Record<string, string>[], dryRun: boolean): Promise<ImportLeadsResult> {
+  const results: ImportRowResult[] = [];
+  const parsed: { line: number; data: ImportLeadRow }[] = [];
+
+  rawRows.forEach((raw, i) => {
+    const line = i + 2;
+    const r = importLeadRowSchema.safeParse(raw);
+    if (!r.success) {
+      results.push({
+        line,
+        name: `${raw.firstName ?? ''} ${raw.lastName ?? ''}`.trim(),
+        email: raw.email ?? '',
+        status: 'invalid',
+        reason: Array.from(new Set(r.error.issues.map((x) => x.message))).join('; '),
+      });
+    } else {
+      parsed.push({ line, data: r.data });
+    }
+  });
+
+  const emails = Array.from(new Set(parsed.map((p) => p.data.email)));
+  const existing = new Set(
+    (await Lead.find({ isActive: true, email: { $in: emails } }).select('email').lean()).map((l) => l.email)
+  );
+
+  const seen = new Set<string>();
+  const toCreate: ImportLeadRow[] = [];
+  for (const { line, data } of parsed) {
+    const name = `${data.firstName} ${data.lastName}`;
+    if (existing.has(data.email)) {
+      results.push({ line, name, email: data.email, status: 'duplicate', reason: 'A lead with this email already exists' });
+    } else if (seen.has(data.email)) {
+      results.push({ line, name, email: data.email, status: 'duplicate', reason: 'Repeated earlier in this file' });
+    } else {
+      seen.add(data.email);
+      toCreate.push(data);
+      results.push({ line, name, email: data.email, status: 'valid' });
+    }
+  }
+  results.sort((a, b) => a.line - b.line);
+
+  let imported = 0;
+  if (!dryRun && toCreate.length > 0) {
+    const assignedTo = isAdmin(actor) ? undefined : actor.id;
+    const docs = toCreate.map((d) => ({
+      firstName: d.firstName,
+      lastName: d.lastName,
+      email: d.email,
+      phone: d.phone,
+      // Lead.company is required by the model; fall back to the person's name when the CSV has no company column.
+      company: d.company || `${d.firstName} ${d.lastName}`,
+      jobTitle: d.jobTitle || undefined,
+      website: d.website || undefined,
+      industry: d.industry || undefined,
+      notes: d.notes || undefined,
+      source: matchSource(d.source),
+      sourceDetails: 'CSV import',
+      assignedTo,
+      createdBy: actor.id,
+      stageHistory: [{ stage: 'new', changedAt: new Date(), changedBy: actor.id }],
+      activities: [{ type: 'note', description: 'Lead imported from CSV', user: actor.id }],
+    }));
+    const inserted = await Lead.insertMany(docs, { ordered: false });
+    imported = inserted.length;
+    await recordAudit({ user: actor.id, action: 'create', entity: 'lead', description: `Imported ${imported} leads from CSV` });
+  }
+
+  const count = (s: ImportRowResult['status']) => results.filter((r) => r.status === s).length;
+  return {
+    total: rawRows.length,
+    valid: count('valid'),
+    invalid: count('invalid'),
+    duplicates: count('duplicate'),
+    imported,
+    dryRun,
+    rows: results,
+  };
 }

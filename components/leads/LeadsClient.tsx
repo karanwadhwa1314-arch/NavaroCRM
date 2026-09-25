@@ -2,13 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useUrlNavigation } from '@/components/layout/UrlNavigation';
 import toast from 'react-hot-toast';
-import { Plus, Inbox } from 'lucide-react';
+import { Plus, Inbox, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Pagination } from '@/components/ui/Pagination';
+import { ImportLeadsModal } from '@/components/leads/ImportLeadsModal';
 import { LeadFilters } from '@/components/leads/LeadFilters';
 import { LeadTable, type LeadRow } from '@/components/leads/LeadTable';
 import { LeadForm, type LeadFormValues } from '@/components/leads/LeadForm';
@@ -35,8 +37,10 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { navigate } = useUrlNavigation();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editLead, setEditLead] = useState<LeadRow | null>(null);
   const [deleteLead, setDeleteLead] = useState<LeadRow | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -47,7 +51,7 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
   function updatePage(page: number) {
     const params = new URLSearchParams(searchParams.toString());
     params.set('page', String(page));
-    router.replace(`${pathname}?${params.toString()}`);
+    navigate(`${pathname}?${params.toString()}`);
   }
 
   function handleSort(field: string) {
@@ -56,7 +60,7 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
     const currentOrder = params.get('order') ?? 'desc';
     params.set('sort', field);
     params.set('order', currentSort === field && currentOrder === 'asc' ? 'desc' : 'asc');
-    router.replace(`${pathname}?${params.toString()}`);
+    navigate(`${pathname}?${params.toString()}`);
   }
 
   async function handleCreate(values: LeadFormValues) {
@@ -122,9 +126,14 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <LeadFilters users={assignableUsers} />
         {can('leads.create') && (
-          <Button onClick={() => setCreateOpen(true)} className="shrink-0">
-            <Plus className="h-4 w-4" /> Add lead
-          </Button>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4" /> Import CSV
+            </Button>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" /> Add lead
+            </Button>
+          </div>
         )}
       </div>
 
@@ -135,7 +144,7 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
           body={hasFilters ? 'Try a different search or clear your filters.' : 'Add your first lead to get started.'}
           action={
             hasFilters ? (
-              <Button variant="secondary" onClick={() => router.replace(pathname)}>
+              <Button variant="secondary" onClick={() => navigate(pathname)}>
                 Clear filters
               </Button>
             ) : can('leads.create') ? (
@@ -158,6 +167,8 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
           </div>
         </>
       )}
+
+      <ImportLeadsModal open={importOpen} onClose={() => setImportOpen(false)} onImported={() => router.refresh()} />
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Add lead" size="lg" preventClose={submitting}>
         <LeadForm

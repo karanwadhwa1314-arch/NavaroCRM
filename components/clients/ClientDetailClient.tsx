@@ -191,7 +191,7 @@ export function ClientDetailClient({ client }: { client: ClientDetail }) {
       )}
 
       {client.convertedFromLead && (
-        <div className="rounded-control bg-navaro-lavenderTint px-4 py-3 text-sm text-navaro-green">
+        <div className="rounded-control bg-navaro-lavender px-4 py-3 text-sm font-medium text-navaro-ink">
           Converted from lead{' '}
           <Link href={`/leads/${client.convertedFromLead._id}`} className="underline">
             {client.convertedFromLead.firstName} {client.convertedFromLead.lastName}

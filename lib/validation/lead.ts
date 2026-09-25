@@ -8,6 +8,7 @@ import {
   CURRENCIES,
   USER_ADDABLE_ACTIVITY_TYPES,
 } from '@/lib/constants';
+import { MAX_IMPORT_ROWS } from '@/lib/csv';
 import { emptyToUndefined, fallbackEnum, limitSchema, nullableObjectId, pageSchema, tagsSchema } from '@/lib/validation/common';
 
 const estimatedBudgetSchema = z
@@ -85,3 +86,25 @@ export const leadListQuerySchema = z.object({
   order: z.enum(['asc', 'desc']).default('desc'),
 });
 export type LeadListQuery = z.infer<typeof leadListQuerySchema>;
+
+
+/** One CSV row after client-side header mapping. Validated again here — the API is authoritative. */
+export const importLeadRowSchema = z.object({
+  firstName: z.string().trim().min(1, 'First name is required').max(50),
+  lastName: z.string().trim().min(1, 'Last name is required').max(50),
+  email: z.string().trim().toLowerCase().email('Email is not valid'),
+  phone: z.string().trim().min(1, 'Phone is required').max(30),
+  company: z.string().trim().max(120).optional(),
+  jobTitle: z.string().trim().max(100).optional(),
+  website: z.string().trim().max(200).optional(),
+  industry: z.string().trim().max(100).optional(),
+  source: z.string().trim().optional(),
+  notes: z.string().trim().max(5000).optional(),
+});
+export type ImportLeadRow = z.infer<typeof importLeadRowSchema>;
+
+export const importLeadsBodySchema = z.object({
+  rows: z.array(z.record(z.string(), z.string())).min(1, 'The file has no data rows').max(MAX_IMPORT_ROWS, `Import at most ${MAX_IMPORT_ROWS} leads at a time`),
+  dryRun: z.boolean().default(false),
+});
+export type ImportLeadsBody = z.infer<typeof importLeadsBodySchema>;

@@ -11,26 +11,26 @@ import {
 } from '@/lib/constants';
 
 const LEAD_STAGE_TONE: Record<LeadStage, BadgeTone> = {
-  new: 'lavender',
-  qualified: 'turquoise',
-  proposal: 'yellow',
-  negotiation: 'yellow',
+  new: 'lavenderSolid',
+  qualified: 'turquoiseSolid',
+  proposal: 'yellowSolid',
+  negotiation: 'yellowSolid',
   won: 'green',
-  lost: 'danger',
+  lost: 'dangerSolid',
 };
 
 const PRIORITY_TONE: Record<Priority, BadgeTone> = {
-  low: 'neutral',
-  medium: 'lavender',
-  high: 'yellow',
-  urgent: 'danger',
+  low: 'outline',
+  medium: 'neutral',
+  high: 'yellowSolid',
+  urgent: 'dangerSolid',
 };
 
 const CLIENT_STATUS_TONE: Record<ClientStatus, BadgeTone> = {
-  prospect: 'lavender',
-  active: 'turquoise',
-  inactive: 'neutral',
-  churned: 'danger',
+  prospect: 'lavenderSolid',
+  active: 'turquoiseSolid',
+  inactive: 'outline',
+  churned: 'dangerSolid',
 };
 
 export function LeadStageBadge({ stage }: { stage: LeadStage }) {

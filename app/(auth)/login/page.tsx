@@ -66,21 +66,21 @@ function LoginForm() {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-navaro-heath px-4">
       <div
-        className="pointer-events-none absolute -right-16 -top-16 hidden h-64 w-64 rounded-[40px] bg-navaro-yellow/40 sm:block"
+        className="pointer-events-none absolute -right-16 -top-16 hidden h-64 w-64 rounded-[40px] bg-navaro-yellow sm:block"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute -bottom-20 -left-16 hidden h-72 w-72 rounded-full bg-navaro-lavender/30 sm:block"
+        className="pointer-events-none absolute -bottom-20 -left-16 hidden h-72 w-72 rounded-full bg-navaro-lavender sm:block"
         aria-hidden="true"
       />
       <div
-        className="pointer-events-none absolute bottom-24 right-24 hidden h-16 w-16 rounded-full bg-navaro-turquoise/40 sm:block"
+        className="pointer-events-none absolute bottom-24 right-24 hidden h-16 w-16 rounded-full bg-navaro-turquoise sm:block"
         aria-hidden="true"
       />
 
       <div className="relative w-full max-w-[420px] rounded-card border border-navaro-line bg-white p-8">
         <div className="mb-6 flex flex-col items-start gap-4">
-          <Logo variant="horizontal" height={40} />
+          <Logo variant="horizontal" height={56} />
           <div>
             <h1 className="text-h1 text-navaro-green">Sign in</h1>
             <p className="mt-1 text-body text-navaro-muted">Welcome back to Navaro CRM.</p>

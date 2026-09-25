@@ -30,9 +30,9 @@ interface UserTableProps {
   onDelete: (u: UserRow) => void;
 }
 
-const ROLE_BADGE_TONE: Record<UserRole, 'green' | 'turquoise' | 'neutral'> = {
+const ROLE_BADGE_TONE: Record<UserRole, 'green' | 'turquoiseSolid' | 'neutral'> = {
   superadmin: 'green',
-  admin: 'turquoise',
+  admin: 'turquoiseSolid',
   member: 'neutral',
 };
 
@@ -74,7 +74,7 @@ export function UserTable({ items, onEdit, onPermissions, onToggleStatus, onDele
                 <Badge tone={ROLE_BADGE_TONE[u.role]}>{ROLE_LABELS[u.role]}</Badge>
               </TableCell>
               <TableCell>
-                <Badge tone={u.isActive ? 'turquoise' : 'neutral'}>{u.isActive ? 'Active' : 'Inactive'}</Badge>
+                <Badge tone={u.isActive ? 'turquoiseSolid' : 'outline'}>{u.isActive ? 'Active' : 'Inactive'}</Badge>
               </TableCell>
               <TableCell>{u.role === 'superadmin' ? 'All' : `${u.permissions.length} of ${PERMISSIONS.length}`}</TableCell>
               <TableCell>{u.lastLogin ? formatDate(u.lastLogin) : 'Never'}</TableCell>

@@ -11,7 +11,6 @@ import type { ClientRow } from '@/components/clients/ClientTable';
 export const dynamic = 'force-dynamic';
 
 export default async function ClientsPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  const user = await requirePagePermission('clients.view');
   await connectDB();
 
   const flatParams = Object.fromEntries(
@@ -19,11 +18,12 @@ export default async function ClientsPage({ searchParams }: { searchParams: Reco
   );
   const query = clientListQuerySchema.parse(flatParams);
 
-  const [{ items, total, page, limit }, stats, assignableUsers] = await Promise.all([
-    clientsService.list(user, query),
+  const [user, stats, assignableUsers] = await Promise.all([
+    requirePagePermission('clients.view'),
     clientsService.stats(),
     usersService.assignable(),
   ]);
+  const { items, total, page, limit } = await clientsService.list(user, query);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const pagination = { total, page, limit, totalPages, hasNextPage: page < totalPages, hasPrevPage: page > 1 };

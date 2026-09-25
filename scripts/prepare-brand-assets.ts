@@ -103,6 +103,10 @@ async function processHorizontalLogo() {
   const clearspace = height; // x = the logomark's own height
   const withClearspace = await padTransparent(buffer, clearspace);
 
+  // Artwork-only variant for UI use: clearspace is then applied by layout padding,
+  // so the rendered height is the real logomark height rather than 1/3 of it.
+  await sharp(buffer).toFile(path.join(PUBLIC_BRAND_DIR, 'logo-horizontal-trim.png'));
+
   await sharp(withClearspace).toFile(path.join(PUBLIC_BRAND_DIR, 'logo-horizontal.png'));
   await sharp(withClearspace).resize({ width: 480 }).toFile(path.join(PUBLIC_BRAND_DIR, 'logo-horizontal@1x.png'));
 

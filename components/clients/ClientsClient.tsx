@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useUrlNavigation } from '@/components/layout/UrlNavigation';
 import toast from 'react-hot-toast';
 import { Plus, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -35,6 +36,7 @@ export function ClientsClient({ items, pagination, assignableUsers, hasFilters }
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { navigate } = useUrlNavigation();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteClient, setDeleteClient] = useState<ClientRow | null>(null);
@@ -46,7 +48,7 @@ export function ClientsClient({ items, pagination, assignableUsers, hasFilters }
   function updatePage(page: number) {
     const params = new URLSearchParams(searchParams.toString());
     params.set('page', String(page));
-    router.replace(`${pathname}?${params.toString()}`);
+    navigate(`${pathname}?${params.toString()}`);
   }
 
   function handleSort(field: string) {
@@ -55,7 +57,7 @@ export function ClientsClient({ items, pagination, assignableUsers, hasFilters }
     const currentOrder = params.get('order') ?? 'desc';
     params.set('sort', field);
     params.set('order', currentSort === field && currentOrder === 'asc' ? 'desc' : 'asc');
-    router.replace(`${pathname}?${params.toString()}`);
+    navigate(`${pathname}?${params.toString()}`);
   }
 
   async function handleCreate(values: ClientFormValues) {
@@ -114,7 +116,7 @@ export function ClientsClient({ items, pagination, assignableUsers, hasFilters }
           body={hasFilters ? 'Try a different search or clear your filters.' : 'Add your first client to get started.'}
           action={
             hasFilters ? (
-              <Button variant="secondary" onClick={() => router.replace(pathname)}>
+              <Button variant="secondary" onClick={() => navigate(pathname)}>
                 Clear filters
               </Button>
             ) : can('clients.create') ? (

@@ -74,7 +74,7 @@ export function LeadTable({ items, onEdit, onDelete, sort, order, onSort }: Lead
                         onClick={(e) => e.stopPropagation()}
                         className="ml-2 inline-block"
                       >
-                        <Badge tone="turquoise">Converted</Badge>
+                        <Badge tone="turquoiseSolid">Converted</Badge>
                       </Link>
                     )}
                   </TableCell>

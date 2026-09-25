@@ -16,7 +16,7 @@ const accentClasses: Record<KpiCardProps['accent'], string> = {
 export function KpiCard({ label, value, accent }: KpiCardProps) {
   return (
     <div className="overflow-hidden rounded-card border border-navaro-line bg-white">
-      <div className={clsx('h-1', accentClasses[accent])} />
+      <div className={clsx("h-1.5", accentClasses[accent])} />
       <div className="p-5">
         <p className="text-display text-navaro-green">{value}</p>
         <p className="mt-1 text-label text-navaro-muted">{label}</p>

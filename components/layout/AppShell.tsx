@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { Sidebar, MobileSidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import { UrlNavigationProvider } from '@/components/layout/UrlNavigation';
 import { PageHeaderProvider } from '@/components/layout/PageHeaderContext';
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -22,7 +23,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <MobileSidebar open={mobileOpen} onClose={() => setMobileOpen(false)} />
         <div className="lg:pl-[264px]">
           <Header onMenuClick={() => setMobileOpen(true)} />
-          <main className="px-4 py-6 lg:px-6">{children}</main>
+          <main className="px-4 py-6 lg:px-6">
+            <UrlNavigationProvider>{children}</UrlNavigationProvider>
+          </main>
         </div>
       </div>
     </PageHeaderProvider>

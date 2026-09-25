@@ -63,7 +63,7 @@ function SidebarContent() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center border-b border-navaro-line px-6">
-        <Logo height={28} />
+        <Logo height={40} />
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
         {main.filter((i) => i.show).map((item) => (

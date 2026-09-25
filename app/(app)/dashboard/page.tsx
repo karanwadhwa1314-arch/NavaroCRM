@@ -23,7 +23,7 @@ function greeting(): string {
 export default async function DashboardPage() {
   const user = await requireUser();
   await connectDB();
-  const { leads, clients } = await getDashboard(user);
+  const { leads, clients } = await getDashboard(user); // leads/clients sections already run in parallel inside
 
   const hasAnyAccess = hasPermission(user, 'leads.view') || hasPermission(user, 'clients.view');
 

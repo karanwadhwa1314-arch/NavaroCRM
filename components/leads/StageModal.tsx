@@ -79,7 +79,7 @@ export function StageModal({
         {error && <p className="text-label text-danger">{error}</p>}
 
         {stage === 'won' && (
-          <div className="rounded-control bg-navaro-turquoiseTint px-3 py-2 text-sm text-navaro-green">
+          <div className="rounded-control bg-navaro-turquoise px-3 py-2 text-sm text-navaro-green">
             Marking this lead as won will create the client &ldquo;{company}&rdquo; with {contactName} as primary contact.
             {!canCreateClient && (
               <p className="mt-1 text-label text-navaro-muted">You need permission to create clients to do this.</p>

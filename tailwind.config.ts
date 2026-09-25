@@ -42,6 +42,9 @@ const config: Config = {
         control: '10px',
         card: '16px',
       },
+      keyframes: {
+        'navaro-slide': { '0%': { transform: 'translateX(-100%)' }, '100%': { transform: 'translateX(300%)' } },
+      },
       boxShadow: {},
     },
   },
