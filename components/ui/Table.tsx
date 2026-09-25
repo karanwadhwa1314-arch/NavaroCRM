@@ -72,6 +72,18 @@ export function TableRow({
   );
 }
 
-export function TableCell({ children, className }: { children: ReactNode; className?: string }) {
-  return <td className={clsx('px-4 py-3 text-sm font-light text-navaro-green', className)}>{children}</td>;
+export function TableCell({
+  children,
+  className,
+  onClick,
+}: {
+  children: ReactNode;
+  className?: string;
+  onClick?: (e: React.MouseEvent<HTMLTableCellElement>) => void;
+}) {
+  return (
+    <td onClick={onClick} className={clsx('px-4 py-3 text-sm font-light text-navaro-green', className)}>
+      {children}
+    </td>
+  );
 }
