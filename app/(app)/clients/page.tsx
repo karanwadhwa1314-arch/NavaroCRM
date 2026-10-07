@@ -18,12 +18,15 @@ export default async function ClientsPage({ searchParams }: { searchParams: Reco
   );
   const query = clientListQuerySchema.parse(flatParams);
 
-  const [user, stats, assignableUsers] = await Promise.all([
-    requirePagePermission('clients.view'),
-    clientsService.stats(),
-    usersService.assignable(),
-  ]);
+  // See leads/page.tsx: overlap stats with the list rather than running them before it.
+  const userP = requirePagePermission('clients.view');
+  const statsP = clientsService.stats();
+  const assignableP = usersService.assignable();
+  statsP.catch(() => {});
+  assignableP.catch(() => {});
+  const user = await userP;
   const { items, total, page, limit } = await clientsService.list(user, query);
+  const [stats, assignableUsers] = await Promise.all([statsP, assignableP]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const pagination = { total, page, limit, totalPages, hasNextPage: page < totalPages, hasPrevPage: page > 1 };

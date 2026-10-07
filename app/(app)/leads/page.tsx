@@ -18,14 +18,16 @@ export default async function LeadsPage({ searchParams }: { searchParams: Record
   );
   const query = leadListQuerySchema.parse(flatParams);
 
-  // Stats and assignees don't depend on the session lookup, so run them alongside it
-  // instead of after it; the list needs the actor (for assignedTo=me) and follows.
-  const [user, stats, assignableUsers] = await Promise.all([
-    requirePagePermission('leads.view'),
-    leadsService.stats(),
-    usersService.assignable(),
-  ]);
+  // Start everything at once, but only wait for the session before the list query (it needs the
+  // actor for assignedTo=me). Stats are the slowest query, so they must overlap the list, not precede it.
+  const userP = requirePagePermission('leads.view');
+  const statsP = leadsService.stats();
+  const assignableP = usersService.assignable();
+  statsP.catch(() => {}); // avoid an unhandled rejection if the permission check redirects first
+  assignableP.catch(() => {});
+  const user = await userP;
   const { items, total, page, limit } = await leadsService.list(user, query);
+  const [stats, assignableUsers] = await Promise.all([statsP, assignableP]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const pagination = {
