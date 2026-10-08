@@ -132,5 +132,15 @@ export const AUDIT_ACTIONS = [
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export const AUDIT_ENTITIES = ['user', 'lead', 'client', 'auth'] as const;
+export const AUDIT_ENTITIES = ['user', 'lead', 'client', 'auth', 'broadcast'] as const;
+
+export const BROADCAST_STATUSES = ['draft', 'scheduled', 'sending', 'sent', 'failed'] as const;
+export type BroadcastStatus = (typeof BROADCAST_STATUSES)[number];
+export const BROADCAST_STATUS_LABELS: Record<BroadcastStatus, string> = {
+  draft: 'Draft',
+  scheduled: 'Scheduled',
+  sending: 'Sending',
+  sent: 'Sent',
+  failed: 'Failed',
+};
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];

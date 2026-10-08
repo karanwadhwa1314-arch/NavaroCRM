@@ -56,9 +56,20 @@ Three roles: `superadmin`, `admin`, `member`.
 
 `assets/brand-source/` holds the raw logo PNGs supplied by the brand guide (opaque, off-white background, no transparency). `scripts/prepare-brand-assets.ts` keys that background out to alpha, trims to the artwork bounding box, re-pads with the brand's clearspace rule, and writes the processed files to `public/brand/` plus `app/icon.png`/`app/apple-icon.png`. Re-run `npm run brand:prepare` and commit the output whenever the source files change. `navaro-logo-vertical.png` is a known-broken asset (cropped wordmark) and is never read by the script or referenced anywhere in the app.
 
+## Broadcasts
+
+Email every active lead in the CRM, now or on a schedule (sidebar → Broadcasts). Permissions are `broadcasts.view/create/edit/delete/send`; they are **not** part of the admin/member defaults — a superadmin grants them from Users → Permissions. Scheduling or sending requires `broadcasts.send`.
+
+- **Sender:** `RESEND_FROM_EMAIL` (default `karan@navaro.co.in`) and `RESEND_FROM_NAME`. The domain must be verified in Resend.
+- **Audience:** `resolveAudience()` in `services/broadcasts.ts` — active leads (any stage) with a valid email; duplicate addresses collapse to one. The audience is frozen into `BroadcastDelivery` rows when sending starts, so leads added mid-send are not included.
+- **Sending:** Resend's batch API, 100 per call, with an idempotency key per chunk, a lease so two workers never send the same broadcast, and per-address rejection handling. Quota/rate/provider errors pause and resume automatically; configuration errors (bad key, unverified domain) mark the broadcast **Failed** and **Retry** resumes it.
+- **Scheduling:** the schedule lives in MongoDB. Vercel has no always-on server, so `.github/workflows/broadcast-scheduler.yml` calls `GET /api/cron/broadcasts` every 5 minutes (Bearer `CRON_SECRET`). A scheduled broadcast goes out at the first tick at or after its time (up to ~5 min late). On Vercel Pro you can use Vercel Cron instead by adding a `vercel.json` with `{"crons":[{"path":"/api/cron/broadcasts","schedule":"* * * * *"}]}` and setting `CRON_SECRET` in Vercel (Vercel sends it automatically); Hobby plans only allow daily cron, which is why the default is GitHub Actions.
+- **Merge field:** `{{first_name}}` (falls back to "there"). Nothing else is personalised yet.
+- **Not built (by design):** unsubscribe management, segmentation, open/click tracking.
+
 ## Deploying to Vercel
 
-1. Set `MONGODB_URI`, `JWT_SECRET`, `APP_URL` (and optionally `RESEND_API_KEY`/`EMAIL_FROM`) as environment variables.
+1. Set `MONGODB_URI`, `JWT_SECRET`, `APP_URL` (and optionally `RESEND_API_KEY`/`EMAIL_FROM`, and for Broadcasts `RESEND_FROM_EMAIL`, `RESEND_FROM_NAME`, `CRON_SECRET`) as environment variables.
 2. From a trusted machine with `MONGODB_URI` pointed at production, run `npm run db:sync-indexes` and `npm run seed` once.
 3. Deploy. Every mutating API route runs on the Node runtime (`export const runtime = 'nodejs'`); only `middleware.ts` runs on Edge, and it only imports `jose` + `next/server`.
 

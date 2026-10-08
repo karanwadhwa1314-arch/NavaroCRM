@@ -13,12 +13,18 @@ export const PERMISSIONS = [
   'users.create',
   'users.edit',
   'users.delete',
+  'broadcasts.view',
+  'broadcasts.create',
+  'broadcasts.edit',
+  'broadcasts.delete',
+  'broadcasts.send',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 const LEADS_ALL: Permission[] = ['leads.view', 'leads.create', 'leads.edit', 'leads.delete'];
 const CLIENTS_ALL: Permission[] = ['clients.view', 'clients.create', 'clients.edit', 'clients.delete'];
 const USERS_ALL: Permission[] = ['users.view', 'users.create', 'users.edit', 'users.delete'];
+const BROADCASTS_ALL: Permission[] = ['broadcasts.view', 'broadcasts.create', 'broadcasts.edit', 'broadcasts.delete', 'broadcasts.send'];
 
 /** superadmin permissions are inherent and are never stored on the user document. */
 export const ROLE_DEFAULTS: Record<Exclude<UserRole, 'superadmin'>, Permission[]> = {
@@ -44,12 +50,18 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   'users.create': 'Create users',
   'users.edit': 'Edit users',
   'users.delete': 'Delete users',
+  'broadcasts.view': 'View broadcasts',
+  'broadcasts.create': 'Create broadcasts',
+  'broadcasts.edit': 'Edit broadcasts',
+  'broadcasts.delete': 'Delete broadcasts',
+  'broadcasts.send': 'Send broadcasts to all leads',
 };
 
 export const PERMISSION_GROUPS: { group: string; perms: Permission[] }[] = [
   { group: 'Leads', perms: LEADS_ALL },
   { group: 'Clients', perms: CLIENTS_ALL },
   { group: 'Users', perms: USERS_ALL },
+  { group: 'Broadcasts', perms: BROADCASTS_ALL },
 ];
 
 export interface PermissionCheckable {

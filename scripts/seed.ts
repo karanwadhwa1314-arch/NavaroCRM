@@ -8,6 +8,8 @@ import User, { type UserDocument } from '@/models/User';
 import Lead from '@/models/Lead';
 import Client from '@/models/Client';
 import AuditLog from '@/models/AuditLog';
+import Broadcast from '@/models/Broadcast';
+import BroadcastDelivery from '@/models/BroadcastDelivery';
 import { roleDefaultPermissions } from '@/lib/permissions';
 import type { LeadStage, LeadSource, Priority, Currency } from '@/lib/constants';
 
@@ -165,7 +167,7 @@ async function main() {
 
   const superadmin = await seedSuperadmin();
 
-  for (const model of [User, Lead, Client, AuditLog]) {
+  for (const model of [User, Lead, Client, AuditLog, Broadcast, BroadcastDelivery]) {
     await model.syncIndexes();
   }
 

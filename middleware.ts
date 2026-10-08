@@ -6,6 +6,11 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const payload = token ? await verifySessionToken(token) : null;
 
+  // Scheduler endpoint: authenticated by its own shared secret (see app/api/cron/broadcasts), not a session.
+  if (pathname.startsWith('/api/cron/')) {
+    return NextResponse.next();
+  }
+
   if (pathname === '/api/auth/login') {
     return NextResponse.next();
   }
