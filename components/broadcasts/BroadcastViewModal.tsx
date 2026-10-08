@@ -112,7 +112,7 @@ export function BroadcastViewModal({ broadcast, onClose, onEdit, onSendNow, onRe
           </div>
 
           <div>
-            <p className="mb-2 text-label text-navaro-muted">Email as recipients will see it</p>
+            <p className="mb-2 text-label text-navaro-muted">Email as recipients will see it (<code>{'{{first_name}}'}</code> becomes each lead&rsquo;s own first name)</p>
             {detail ? (
               // Sandboxed (no scripts, no same-origin access): the stored HTML is also sanitised server-side.
               <iframe title="Email preview" sandbox="" srcDoc={detail.previewHtml} className="h-[420px] w-full rounded-control border border-navaro-line bg-white" />

@@ -37,6 +37,7 @@ export function getSenderConfig() {
     email,
     from: name ? `${name} <${email}>` : email,
     logoUrl: appUrl ? `${appUrl}/brand/logo-horizontal-trim.png` : undefined,
+    fontBaseUrl: appUrl ? `${appUrl}/fonts` : undefined,
   };
 }
 
@@ -98,7 +99,7 @@ export function serializeBroadcast(b: BroadcastDocument | (Record<string, any> &
       ? {
           content: o.content as string,
           // Exactly what a recipient sees (brand shell, preheader), with a sample first name — for the read-only preview.
-          previewHtml: renderBroadcastHtml({ content: o.content, preview: o.preview, firstName: 'Alex', logoUrl: getSenderConfig().logoUrl }),
+          previewHtml: renderBroadcastHtml({ content: o.content, preview: o.preview, keepTokens: true, logoUrl: getSenderConfig().logoUrl, fontBaseUrl: getSenderConfig().fontBaseUrl }),
         }
       : {}),
     status: o.status as string,
@@ -308,7 +309,7 @@ async function runClaimed(id: string, opts: ProcessOptions): Promise<StopReason>
       from: cfg.from,
       to: [d.email],
       subject: mergeText(b.subject, d.firstName),
-      html: renderBroadcastHtml({ content: b.content, preview: b.preview, firstName: d.firstName, logoUrl: cfg.logoUrl }),
+      html: renderBroadcastHtml({ content: b.content, preview: b.preview, firstName: d.firstName, logoUrl: cfg.logoUrl, fontBaseUrl: cfg.fontBaseUrl }),
       text: renderBroadcastText({ content: b.content, firstName: d.firstName }),
     }));
     // Deterministic for a given set of still-pending recipients, so a retry after a crash that

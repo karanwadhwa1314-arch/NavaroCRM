@@ -72,21 +72,35 @@ export interface RenderInput {
   preview: string;
   firstName?: string;
   logoUrl?: string;
+  /** Public folder holding Utendo-{Light,Regular,Medium}.woff2 (e.g. https://app/fonts). Omit to skip @font-face. */
+  fontBaseUrl?: string;
+  /** CRM preview only: leave {{first_name}} as typed instead of merging a name in. */
+  keepTokens?: boolean;
+}
+
+/** Utendo first (brand), Poppins as the documented fallback, then safe system fonts. Many mail apps (e.g. Gmail) ignore web fonts and use the fallbacks. */
+export const EMAIL_FONT_STACK = "Utendo,Poppins,Helvetica,Arial,sans-serif";
+
+function fontFaces(baseUrl?: string): string {
+  if (!baseUrl) return '';
+  const face = (file: string, weight: number) =>
+    `@font-face{font-family:'Utendo';font-weight:${weight};font-style:normal;src:url('${escapeHtml(baseUrl)}/${file}.woff2') format('woff2');}`;
+  return `<style>${face('Utendo-Light', 300)}${face('Utendo-Regular', 400)}${face('Utendo-Medium', 500)}</style>`;
 }
 
 /** Final HTML for one recipient: brand shell + hidden preheader + merged, styled body. */
-export function renderBroadcastHtml({ content, preview, firstName, logoUrl }: RenderInput): string {
-  const body = styleContent(mergeHtml(content, firstName));
-  const preheader = escapeHtml(mergeText(preview, firstName));
+export function renderBroadcastHtml({ content, preview, firstName, logoUrl, fontBaseUrl, keepTokens }: RenderInput): string {
+  const body = styleContent(keepTokens ? content : mergeHtml(content, firstName));
+  const preheader = escapeHtml(keepTokens ? preview : mergeText(preview, firstName));
   const logo = logoUrl
     ? `<img src="${escapeHtml(logoUrl)}" alt="Navaro" height="36" style="display:block;height:36px;width:auto;border:0;margin:0 0 28px;" />`
     : `<p style="margin:0 0 28px;font-size:18px;font-weight:500;color:${GREEN};">navaro</p>`;
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light">${fontFaces(fontBaseUrl)}</head>
 <body style="margin:0;padding:0;background:${HEATH};">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">${preheader}</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${HEATH};"><tr><td align="center" style="padding:32px 16px;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#FFFFFF;border:1px solid #E1E5DE;border-radius:16px;"><tr><td style="padding:32px;font-family:Poppins,Helvetica,Arial,sans-serif;font-weight:300;color:${GREEN};">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#FFFFFF;border:1px solid #E1E5DE;border-radius:16px;"><tr><td style="padding:32px;font-family:${EMAIL_FONT_STACK};font-weight:300;color:${GREEN};">
 ${logo}
 ${body}
 </td></tr></table>

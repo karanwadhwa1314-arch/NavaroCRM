@@ -363,3 +363,23 @@ beforeEach(() => {
   delete process.env.RESEND_FROM_EMAIL;
   delete process.env.RESEND_FROM_NAME;
 });
+
+describe('email rendering', () => {
+  it('uses the Utendo font stack and only declares @font-face when a font URL is known', async () => {
+    const { renderBroadcastHtml } = await import('@/lib/broadcast-email');
+    const plain = renderBroadcastHtml({ content: '<p>Hi</p>', preview: 'p' });
+    expect(plain).toContain('font-family:Utendo,Poppins');
+    expect(plain).not.toContain('@font-face');
+    const withFonts = renderBroadcastHtml({ content: '<p>Hi</p>', preview: 'p', fontBaseUrl: 'https://crm.example.com/fonts' });
+    expect(withFonts).toContain("src:url('https://crm.example.com/fonts/Utendo-Regular.woff2')");
+  });
+
+  it('keeps {{first_name}} visible in the CRM preview but merges the real name when sending', async () => {
+    const { renderBroadcastHtml } = await import('@/lib/broadcast-email');
+    const input = { content: '<p>Hi {{first_name}},</p>', preview: 'Hey {{first_name}}' };
+    const preview = renderBroadcastHtml({ ...input, keepTokens: true });
+    expect(preview).toContain('Hi {{first_name}},');
+    expect(preview).not.toContain('Alex');
+    expect(renderBroadcastHtml({ ...input, firstName: 'Priya' })).toContain('Hi Priya,');
+  });
+});
