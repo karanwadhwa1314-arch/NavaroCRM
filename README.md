@@ -75,7 +75,7 @@ Email every active lead in the CRM, now or on a schedule (sidebar → Broadcasts
 
 ## Open inputs (flagged, not blocking)
 
-- **Utendo web font files and licence** are not included in the brand kit. Broadcast emails already list Utendo first and, when `APP_URL` is set, declare `@font-face` pointing at `$APP_URL/fonts/Utendo-{Light,Regular,Medium}.woff2`; mail apps that ignore web fonts (e.g. Gmail) use the Poppins/Helvetica fallback regardless. Until `public/fonts/Utendo-{Light,Regular,Medium}.woff2` are added, the app ships the documented Poppins fallback via a single `--font-brand` CSS variable — swapping in Utendo later is a one-line change in `app/layout.tsx`.
+- **Utendo** is self-hosted from `public/fonts/` (`Utendo-Regular.woff2`, `Utendo-Bold.woff2`) via `next/font/local` in `app/layout.tsx`. Only Regular and Bold exist, so Regular serves the 300–500 weights (body and headings) and Bold serves 600+; the brand guide asks for Light body / Medium headings, so add those cuts there if they become available. Broadcast emails declare `@font-face` against `$APP_URL/fonts/`; mail apps that ignore web fonts (e.g. Gmail) use the Poppins/Helvetica fallback. Confirm the font licence covers web and email use.
 - **Vector/SVG logos and single-colour or dark-background logo files** are not included, and the supplied vertical-stack PNG is cropped. Until official replacements arrive, the logo appears only in full colour on white or Bridal Heath backgrounds.
 - The role set (`superadmin`/`admin`/`member`) and the currency list (`lib/constants.ts`) are each a single constant — confirm both with Navaro before launch.
 

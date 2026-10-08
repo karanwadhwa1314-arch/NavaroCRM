@@ -58,8 +58,8 @@ const HEATH = '#FFFAF3';
 function styleContent(html: string): string {
   return html
     .replace(/<p>/g, `<p style="margin:0 0 16px;font-size:16px;line-height:1.55;color:${GREEN};">`)
-    .replace(/<h2>/g, `<h2 style="margin:24px 0 12px;font-size:22px;line-height:1.2;font-weight:500;color:${GREEN};">`)
-    .replace(/<h3>/g, `<h3 style="margin:20px 0 10px;font-size:18px;line-height:1.2;font-weight:500;color:${GREEN};">`)
+    .replace(/<h2>/g, `<h2 style="margin:24px 0 12px;font-size:22px;line-height:1.2;font-weight:700;color:${GREEN};">`)
+    .replace(/<h3>/g, `<h3 style="margin:20px 0 10px;font-size:18px;line-height:1.2;font-weight:700;color:${GREEN};">`)
     .replace(/<(ul|ol)>/g, `<$1 style="margin:0 0 16px;padding-left:22px;font-size:16px;line-height:1.55;color:${GREEN};">`)
     .replace(/<li>/g, '<li style="margin:0 0 6px;">')
     .replace(/<blockquote>/g, `<blockquote style="margin:0 0 16px;padding:4px 0 4px 16px;border-left:4px solid #3ECEB9;color:${GREEN};">`)
@@ -72,20 +72,21 @@ export interface RenderInput {
   preview: string;
   firstName?: string;
   logoUrl?: string;
-  /** Public folder holding Utendo-{Light,Regular,Medium}.woff2 (e.g. https://app/fonts). Omit to skip @font-face. */
+  /** Public folder holding Utendo-{Regular,Bold}.woff2 (e.g. https://app/fonts). Omit to skip @font-face. */
   fontBaseUrl?: string;
   /** CRM preview only: leave {{first_name}} as typed instead of merging a name in. */
   keepTokens?: boolean;
 }
 
-/** Utendo first (brand), Poppins as the documented fallback, then safe system fonts. Many mail apps (e.g. Gmail) ignore web fonts and use the fallbacks. */
+/** Utendo first (brand), Poppins as the documented fallback when the font can't load, then safe system fonts. Many mail apps (e.g. Gmail) ignore web fonts and use the fallbacks. */
 export const EMAIL_FONT_STACK = "Utendo,Poppins,Helvetica,Arial,sans-serif";
 
 function fontFaces(baseUrl?: string): string {
   if (!baseUrl) return '';
-  const face = (file: string, weight: number) =>
-    `@font-face{font-family:'Utendo';font-weight:${weight};font-style:normal;src:url('${escapeHtml(baseUrl)}/${file}.woff2') format('woff2');}`;
-  return `<style>${face('Utendo-Light', 300)}${face('Utendo-Regular', 400)}${face('Utendo-Medium', 500)}</style>`;
+  // Utendo exists as Regular + Bold only: Regular serves 300–500, Bold serves 600+ (headings).
+  const face = (file: string, weight: string) =>
+    `@font-face{font-family:'Utendo';font-weight:${weight};font-style:normal;font-display:swap;src:url('${escapeHtml(baseUrl)}/${file}.woff2') format('woff2');}`;
+  return `<style>${face('Utendo-Regular', '300 500')}${face('Utendo-Bold', '600 700')}</style>`;
 }
 
 /** Final HTML for one recipient: brand shell + hidden preheader + merged, styled body. */
