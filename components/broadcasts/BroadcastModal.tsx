@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { CalendarPicker } from '@/components/broadcasts/CalendarPicker';
 import { RichTextEditor } from '@/components/broadcasts/RichTextEditor';
+import { AttachmentPicker, type AttachmentDraft } from '@/components/broadcasts/AttachmentPicker';
 import { LocalDateTime, localTimezoneName } from '@/components/broadcasts/LocalDateTime';
 import { useSession } from '@/components/providers/SessionProvider';
 import { api, ApiError } from '@/lib/api-client';
@@ -59,6 +60,7 @@ export function BroadcastModal({ open, onClose, editing, existing, onSaved }: Br
   const [html, setHtml] = useState('');
   const [editorKey, setEditorKey] = useState(0);
   const [initialHtml, setInitialHtml] = useState('');
+  const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
   const [day, setDay] = useState<Date | null>(null);
   const [time, setTime] = useState('10:00');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -69,6 +71,7 @@ export function BroadcastModal({ open, onClose, editing, existing, onSaved }: Br
     setStep(1);
     setErrors({});
     setSaving(null);
+    setAttachments([]);
     setDay(null);
     setTime('10:00');
     if (!editing) {
@@ -89,6 +92,7 @@ export function BroadcastModal({ open, onClose, editing, existing, onSaved }: Br
         setPreview(b.preview);
         setHtml(b.content);
         setInitialHtml(b.content);
+        setAttachments(b.attachments.map((a) => ({ key: a.id, id: a.id, filename: a.filename, size: a.size })));
         setEditorKey((k) => k + 1);
         if (b.scheduledAt) {
           const d = new Date(b.scheduledAt);
@@ -134,9 +138,9 @@ export function BroadcastModal({ open, onClose, editing, existing, onSaved }: Br
     if (err instanceof ApiError) {
       if (err.errors?.length) {
         const fe: Record<string, string> = {};
-        for (const e of err.errors) fe[e.field === 'scheduledAt' ? 'schedule' : e.field] = e.message;
+        for (const e of err.errors) fe[e.field === 'scheduledAt' ? 'schedule' : e.field.startsWith('attachments') ? 'attachments' : e.field] = e.message;
         setErrors(fe);
-        if (fe.subject || fe.preview || fe.content) setStep(1);
+        if (fe.subject || fe.preview || fe.content || fe.attachments) setStep(1);
       } else {
         toast.error(err.message);
       }
@@ -165,7 +169,13 @@ export function BroadcastModal({ open, onClose, editing, existing, onSaved }: Br
 
     setSaving(mode);
     try {
-      const body = { subject, preview, content: html, scheduledAt };
+      const body = {
+        subject,
+        preview,
+        content: html,
+        scheduledAt,
+        attachments: attachments.map((a) => (a.id ? { id: a.id } : { filename: a.filename, data: a.data! })),
+      };
       if (editing) await api.put(`/api/broadcasts/${editing.id}`, body);
       else await api.post('/api/broadcasts', body);
       toast.success(mode === 'draft' ? 'Draft saved' : `Broadcast scheduled for ${format(selected!, "MMM d, yyyy 'at' h:mm a")}`);
@@ -253,6 +263,9 @@ export function BroadcastModal({ open, onClose, editing, existing, onSaved }: Br
                   onChange={setHtml}
                 />
               )}
+            </Field>
+            <Field label="Attachments">
+              {(p) => <AttachmentPicker id={p.id} value={attachments} onChange={setAttachments} disabled={saving !== null} error={errors.attachments} />}
             </Field>
           </>
         )}

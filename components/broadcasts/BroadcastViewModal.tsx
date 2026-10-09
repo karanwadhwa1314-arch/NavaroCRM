@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Paperclip } from 'lucide-react';
+import { formatBytes } from '@/lib/broadcast-attachment-rules';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -110,6 +111,26 @@ export function BroadcastViewModal({ broadcast, onClose, onEdit, onSendNow, onRe
             <p className="text-label text-navaro-muted">Preview text</p>
             <p className="text-body text-navaro-green">{b.preview}</p>
           </div>
+
+          {b.attachments?.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-label text-navaro-muted">Attachments (sent with the email)</p>
+              <ul className="flex flex-col gap-1.5">
+                {b.attachments.map((a) => (
+                  <li key={a.id}>
+                    <a
+                      href={`/api/broadcasts/${b.id}/attachments/${a.id}`}
+                      className="inline-flex max-w-full items-center gap-2 rounded-control border border-navaro-line bg-white px-3 py-2 text-sm text-navaro-green hover:bg-navaro-hover"
+                    >
+                      <Paperclip className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="truncate">{a.filename}</span>
+                      <span className="shrink-0 text-label text-navaro-muted">{formatBytes(a.size)}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div>
             <p className="mb-2 text-label text-navaro-muted">Email as recipients will see it (<code>{'{{first_name}}'}</code> becomes each lead&rsquo;s own first name)</p>

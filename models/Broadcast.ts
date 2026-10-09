@@ -1,11 +1,20 @@
 import mongoose, { Schema, type Model, type Document, type Types } from 'mongoose';
 import { BROADCAST_STATUSES, type BroadcastStatus } from '@/lib/constants';
 
+export interface BroadcastAttachmentMeta {
+  _id: Types.ObjectId;
+  filename: string;
+  contentType: string;
+  size: number;
+}
+
 export interface BroadcastDocument extends Document {
   subject: string;
   preview: string;
   /** Sanitised HTML — the single source of truth for what gets sent. */
   content: string;
+  /** Files attached to every recipient's email. The bytes live in BroadcastAttachment (same _id). */
+  attachments: BroadcastAttachmentMeta[];
   status: BroadcastStatus;
   scheduledAt?: Date | null;
   /** When sending first began. */
@@ -28,11 +37,21 @@ export interface BroadcastDocument extends Document {
   updatedAt: Date;
 }
 
+const AttachmentMetaSchema = new Schema<BroadcastAttachmentMeta>(
+  {
+    filename: { type: String, required: true, maxlength: 100 },
+    contentType: { type: String, required: true },
+    size: { type: Number, required: true },
+  },
+  { _id: true }
+);
+
 const BroadcastSchema = new Schema<BroadcastDocument>(
   {
     subject: { type: String, required: true, trim: true, maxlength: 300 },
     preview: { type: String, required: true, trim: true, maxlength: 300 },
     content: { type: String, required: true },
+    attachments: { type: [AttachmentMetaSchema], default: [] },
     status: { type: String, enum: BROADCAST_STATUSES, default: 'draft' },
     scheduledAt: { type: Date, default: null },
     startedAt: { type: Date, default: null },

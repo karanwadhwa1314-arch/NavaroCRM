@@ -10,6 +10,7 @@ import Client from '@/models/Client';
 import AuditLog from '@/models/AuditLog';
 import Broadcast from '@/models/Broadcast';
 import BroadcastDelivery from '@/models/BroadcastDelivery';
+import BroadcastAttachment from '@/models/BroadcastAttachment';
 import { roleDefaultPermissions } from '@/lib/permissions';
 import type { LeadStage, LeadSource, Priority, Currency } from '@/lib/constants';
 
@@ -167,7 +168,7 @@ async function main() {
 
   const superadmin = await seedSuperadmin();
 
-  for (const model of [User, Lead, Client, AuditLog, Broadcast, BroadcastDelivery]) {
+  for (const model of [User, Lead, Client, AuditLog, Broadcast, BroadcastDelivery, BroadcastAttachment]) {
     await model.syncIndexes();
   }
 

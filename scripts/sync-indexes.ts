@@ -5,11 +5,12 @@ import Client from '@/models/Client';
 import AuditLog from '@/models/AuditLog';
 import Broadcast from '@/models/Broadcast';
 import BroadcastDelivery from '@/models/BroadcastDelivery';
+import BroadcastAttachment from '@/models/BroadcastAttachment';
 
 async function main() {
   await connectDB();
 
-  for (const model of [User, Lead, Client, AuditLog, Broadcast, BroadcastDelivery]) {
+  for (const model of [User, Lead, Client, AuditLog, Broadcast, BroadcastDelivery, BroadcastAttachment]) {
     const result = await model.syncIndexes();
     console.log(`${model.modelName}: synced indexes`, result);
   }

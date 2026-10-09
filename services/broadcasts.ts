@@ -1,14 +1,16 @@
 import mongoose from 'mongoose';
 import Broadcast, { type BroadcastDocument } from '@/models/Broadcast';
 import BroadcastDelivery from '@/models/BroadcastDelivery';
+import BroadcastAttachment from '@/models/BroadcastAttachment';
 import Lead from '@/models/Lead';
 import { AppError, conflict, forbidden } from '@/lib/api/errors';
 import { hasPermission } from '@/lib/permissions';
 import { recordAudit } from '@/services/audit';
 import { isValidEmail, renderBroadcastHtml, renderBroadcastText, mergeText } from '@/lib/broadcast-email';
-import { resendBatchSender, isConfigured, type BatchSender, type BatchEmail } from '@/lib/resend-batch';
+import { resendBatchSender, isConfigured, type BatchSender, type BatchEmail, type EmailAttachment } from '@/lib/resend-batch';
+import { decodeUpload } from '@/lib/broadcast-attachments';
 import type { SessionUser } from '@/lib/auth/session';
-import type { CreateBroadcastInput, UpdateBroadcastInput } from '@/lib/validation/broadcast';
+import type { AttachmentInput, CreateBroadcastInput, UpdateBroadcastInput } from '@/lib/validation/broadcast';
 
 // ---------------------------------------------------------------------------------------------
 // Tunables. Resend: 100 emails per batch call, 10 requests/second per team (default).
@@ -17,6 +19,10 @@ export const CHUNK_SIZE = 100;
 const LEASE_MS = 90_000; // a worker owns a broadcast this long; it is re-extended every chunk
 const PAUSE_BETWEEN_CHUNKS_MS = 250; // ~4 req/s, comfortably under the 10 req/s limit
 const MAX_TRANSIENT_FAILURES = 5;
+// Resend's batch endpoint can't carry attachments, so broadcasts with files go out one request per recipient.
+// Small chunks sent in parallel, then a pause, keep that under Resend's default 5 requests/second.
+const ATTACHMENT_CHUNK_SIZE = 4;
+const ATTACHMENT_PAUSE_MS = 1000;
 const DEFAULT_BUDGET_MS = 40_000; // keep well inside the 60s function limit
 
 export interface ProcessOptions {
@@ -102,6 +108,12 @@ export function serializeBroadcast(b: BroadcastDocument | (Record<string, any> &
           previewHtml: renderBroadcastHtml({ content: o.content, preview: o.preview, keepTokens: true, logoUrl: getSenderConfig().logoUrl, fontBaseUrl: getSenderConfig().fontBaseUrl }),
         }
       : {}),
+    attachments: ((o.attachments ?? []) as { _id: unknown; filename: string; contentType: string; size: number }[]).map((a) => ({
+      id: String(a._id),
+      filename: a.filename,
+      contentType: a.contentType,
+      size: a.size,
+    })),
     status: o.status as string,
     scheduledAt: o.scheduledAt ? new Date(o.scheduledAt).toISOString() : null,
     startedAt: o.startedAt ? new Date(o.startedAt).toISOString() : null,
@@ -147,22 +159,32 @@ export async function create(actor: SessionUser, input: CreateBroadcastInput, no
     assertMaySchedule(actor);
     assertFuture(input.scheduledAt, now);
   }
-  const b = await Broadcast.create({
-    subject: input.subject,
-    preview: input.preview,
-    content: input.content,
-    status: input.scheduledAt ? 'scheduled' : 'draft',
-    scheduledAt: input.scheduledAt ?? null,
-    createdBy: actor.id,
-    fromEmail: getSenderConfig().email,
-  });
+  const _id = new mongoose.Types.ObjectId();
+  const { metas } = await saveNewAttachments(_id, input.attachments ?? [], []);
+  let b;
+  try {
+    b = await Broadcast.create({
+      _id,
+      subject: input.subject,
+      preview: input.preview,
+      content: input.content,
+      attachments: metas,
+      status: input.scheduledAt ? 'scheduled' : 'draft',
+      scheduledAt: input.scheduledAt ?? null,
+      createdBy: actor.id,
+      fromEmail: getSenderConfig().email,
+    });
+  } catch (err) {
+    await BroadcastAttachment.deleteMany({ broadcast: _id });
+    throw err;
+  }
   await recordAudit({ user: actor.id, action: 'create', entity: 'broadcast', entityId: String(b._id), description: `Created broadcast "${b.subject}" (${b.status})` });
   return serializeBroadcast(b, true);
 }
 
 /** Only draft/scheduled broadcasts are editable. The status condition is part of the write, so an edit can never slip in after a send has been claimed. */
 export async function update(actor: SessionUser, id: string, input: UpdateBroadcastInput, now = new Date()) {
-  const current = await Broadcast.findById(id).select('status').lean();
+  const current = await Broadcast.findById(id).select('status attachments').lean();
   if (!current) throw new AppError(404, 'Broadcast not found');
   if (current.status === 'scheduled' || input.scheduledAt) assertMaySchedule(actor);
 
@@ -181,8 +203,22 @@ export async function update(actor: SessionUser, id: string, input: UpdateBroadc
     }
   }
 
+  // New files are stored first and removed again if the edit is refused (e.g. the broadcast started sending meanwhile).
+  let addedIds: mongoose.Types.ObjectId[] = [];
+  if (input.attachments !== undefined) {
+    const saved = await saveNewAttachments(new mongoose.Types.ObjectId(id), input.attachments, current.attachments ?? []);
+    $set.attachments = saved.metas;
+    addedIds = saved.addedIds;
+  }
+
   const updated = await Broadcast.findOneAndUpdate({ _id: id, status: { $in: ['draft', 'scheduled'] } }, { $set }, { new: true }).lean();
-  if (!updated) await throwNotEditable(id, 'edited');
+  if (!updated) {
+    if (addedIds.length) await BroadcastAttachment.deleteMany({ _id: { $in: addedIds } });
+    await throwNotEditable(id, 'edited');
+  }
+  if (input.attachments !== undefined) {
+    await BroadcastAttachment.deleteMany({ broadcast: id, _id: { $nin: updated!.attachments.map((a) => a._id) } });
+  }
   await recordAudit({ user: actor.id, action: 'update', entity: 'broadcast', entityId: id, description: `Updated broadcast "${updated!.subject}"` });
   return serializeBroadcast(updated!, true);
 }
@@ -196,7 +232,50 @@ export async function remove(actor: SessionUser, id: string): Promise<void> {
     throw conflict("This broadcast has been sent (or is sending), so it's kept as a record and can't be deleted.");
   }
   await BroadcastDelivery.deleteMany({ broadcast: id });
+  await BroadcastAttachment.deleteMany({ broadcast: id });
   await recordAudit({ user: actor.id, action: 'delete', entity: 'broadcast', entityId: id, description: `Deleted broadcast "${res.subject}"` });
+}
+
+/**
+ * Turns the attachment list from a request (ids to keep + new uploads) into the metadata stored on the
+ * broadcast, and stores the bytes of the new uploads. Throws before storing anything if a file is invalid.
+ */
+async function saveNewAttachments(
+  broadcastId: mongoose.Types.ObjectId,
+  items: AttachmentInput[],
+  existing: { _id: mongoose.Types.ObjectId; filename: string; contentType: string; size: number }[]
+) {
+  const keep = new Map(existing.map((a) => [String(a._id), a]));
+  const seen = new Set<string>();
+  const metas: { _id: mongoose.Types.ObjectId; filename: string; contentType: string; size: number }[] = [];
+  const docs: { _id: mongoose.Types.ObjectId; broadcast: mongoose.Types.ObjectId; filename: string; contentType: string; size: number; data: Buffer }[] = [];
+
+  for (const item of items) {
+    if ('id' in item) {
+      const kept = keep.get(item.id);
+      if (!kept) {
+        const message = 'An attached file no longer exists. Please attach it again.';
+        throw new AppError(400, message, { errors: [{ field: 'attachments', message }] });
+      }
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      metas.push({ _id: kept._id, filename: kept.filename, contentType: kept.contentType, size: kept.size });
+    } else {
+      const f = decodeUpload(item);
+      const _id = new mongoose.Types.ObjectId();
+      metas.push({ _id, filename: f.filename, contentType: f.contentType, size: f.size });
+      docs.push({ _id, broadcast: broadcastId, filename: f.filename, contentType: f.contentType, size: f.size, data: f.data });
+    }
+  }
+  if (docs.length) await BroadcastAttachment.insertMany(docs);
+  return { metas, addedIds: docs.map((d) => d._id) };
+}
+
+/** One stored file, for the download link. */
+export async function getAttachment(broadcastId: string, attachmentId: string) {
+  const doc = await BroadcastAttachment.findOne({ _id: attachmentId, broadcast: broadcastId });
+  if (!doc) throw new AppError(404, 'Attachment not found');
+  return { filename: doc.filename, contentType: doc.contentType, data: doc.data as Buffer };
 }
 
 async function throwNotEditable(id: string, verb: string): Promise<never> {
@@ -281,12 +360,32 @@ async function runClaimed(id: string, opts: ProcessOptions): Promise<StopReason>
   const sender = opts.sender ?? resendBatchSender;
   const nowFn = opts.now ?? (() => new Date());
   const deadline = Date.now() + (opts.budgetMs ?? DEFAULT_BUDGET_MS);
-  const pauseMs = opts.pauseMs ?? PAUSE_BETWEEN_CHUNKS_MS;
-  const chunkSize = opts.chunkSize ?? CHUNK_SIZE;
   const cfg = getSenderConfig();
 
   const b = await Broadcast.findById(id).lean();
   if (!b || b.status !== 'sending') return 'lost-lease';
+
+  const attachmentIds = (b.attachments ?? []).map((a) => a._id);
+  const hasAttachments = attachmentIds.length > 0;
+  const pauseMs = opts.pauseMs ?? (hasAttachments ? ATTACHMENT_PAUSE_MS : PAUSE_BETWEEN_CHUNKS_MS);
+  const chunkSize = opts.chunkSize ?? (hasAttachments ? ATTACHMENT_CHUNK_SIZE : CHUNK_SIZE);
+
+  let attachments: EmailAttachment[] | undefined;
+  if (hasAttachments) {
+    const docs = await BroadcastAttachment.find({ _id: { $in: attachmentIds } });
+    if (docs.length !== attachmentIds.length) {
+      // Never send recipients an email that is missing its files.
+      await Broadcast.updateOne(
+        { _id: id, status: 'sending' },
+        { $set: { status: 'failed', lockedUntil: null, lastError: 'One of the attached files is missing, so nothing was sent. Edit the broadcast and attach the files again.' } }
+      );
+      return 'failed';
+    }
+    attachments = attachmentIds.map((aid) => {
+      const d = docs.find((x) => String(x._id) === String(aid))!;
+      return { filename: d.filename, contentType: d.contentType, content: d.data as Buffer };
+    });
+  }
 
   if (!b.audienceSnapshotAt) await snapshotAudience(id, nowFn());
 
@@ -311,6 +410,7 @@ async function runClaimed(id: string, opts: ProcessOptions): Promise<StopReason>
       subject: mergeText(b.subject, d.firstName),
       html: renderBroadcastHtml({ content: b.content, preview: b.preview, firstName: d.firstName, logoUrl: cfg.logoUrl, fontBaseUrl: cfg.fontBaseUrl }),
       text: renderBroadcastText({ content: b.content, firstName: d.firstName }),
+      ...(attachments ? { attachments } : {}),
     }));
     // Deterministic for a given set of still-pending recipients, so a retry after a crash that
     // happened between "Resend accepted it" and "we recorded it" is de-duplicated by Resend (24h).

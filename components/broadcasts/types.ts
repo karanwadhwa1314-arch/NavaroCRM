@@ -1,10 +1,18 @@
 import type { BroadcastStatus } from '@/lib/constants';
 
+export interface BroadcastAttachmentInfo {
+  id: string;
+  filename: string;
+  contentType: string;
+  size: number;
+}
+
 /** A broadcast as returned by the list API (no body). */
 export interface BroadcastItem {
   id: string;
   subject: string;
   preview: string;
+  attachments: BroadcastAttachmentInfo[];
   status: BroadcastStatus;
   scheduledAt: string | null;
   startedAt: string | null;

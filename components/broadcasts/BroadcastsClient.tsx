@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { AlertCircle, Mail, MoreVertical, Plus } from 'lucide-react';
+import { AlertCircle, Mail, MoreVertical, Paperclip, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -140,6 +140,12 @@ export function BroadcastsClient({ items, emailConfigured, sender, leadCount }: 
                     <div className="mt-3">
                       <StatusLine b={b} />
                     </div>
+                    {b.attachments.length > 0 && (
+                      <p className="mt-2 inline-flex items-center gap-1.5 text-label text-navaro-muted">
+                        <Paperclip className="h-3.5 w-3.5" aria-hidden="true" />
+                        {b.attachments.length} attachment{b.attachments.length === 1 ? '' : 's'}
+                      </p>
+                    )}
                   </button>
                   <div className="flex shrink-0 flex-col items-end gap-2">
                     <BroadcastStatusBadge status={b.status} />
