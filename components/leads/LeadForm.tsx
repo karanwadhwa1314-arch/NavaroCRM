@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, type KeyboardEvent } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { Building2, ChevronDown, UserRound, X } from 'lucide-react';
+import { clsx } from 'clsx';
 import { Field } from '@/components/ui/Field';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
@@ -17,10 +18,12 @@ import {
   TIMELINES,
   TIMELINE_LABELS,
   CURRENCIES,
+  type LeadType,
 } from '@/lib/constants';
 import type { CreateLeadInput } from '@/lib/validation/lead';
 
 export interface LeadFormValues extends Partial<CreateLeadInput> {
+  leadType?: LeadType;
   firstName: string;
   lastName: string;
   email: string;
@@ -42,6 +45,10 @@ interface LeadFormProps {
   isAdmin: boolean;
   assignableUsers: AssignableUser[];
   fieldErrors?: Record<string, string>;
+  /** Kind of lead a new form starts as (the active tab on the Leads page). */
+  defaultType?: LeadType;
+  /** Editing: the type can't be changed once a lead exists. */
+  typeLocked?: boolean;
 }
 
 const EMPTY: LeadFormValues = { firstName: '', lastName: '', email: '', company: '' };
@@ -55,8 +62,11 @@ export function LeadForm({
   isAdmin,
   assignableUsers,
   fieldErrors = {},
+  defaultType = 'individual',
+  typeLocked = false,
 }: LeadFormProps) {
-  const [values, setValues] = useState<LeadFormValues>({ ...EMPTY, ...initial });
+  const [values, setValues] = useState<LeadFormValues>({ ...EMPTY, ...initial, leadType: initial?.leadType ?? defaultType });
+  const isCompany = values.leadType === 'company';
   const [showMore, setShowMore] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
@@ -86,42 +96,104 @@ export function LeadForm({
 
   function validate(): boolean {
     const errors: Record<string, string> = {};
-    if (!values.firstName.trim()) errors.firstName = 'First name is required';
-    if (!values.lastName.trim()) errors.lastName = 'Last name is required';
+    if (!isCompany && !values.firstName.trim()) errors.firstName = 'First name is required';
+    // New individuals need both names; an existing lead imported with a single-word name may keep a blank last name.
+    if (!isCompany && !typeLocked && !values.lastName.trim()) errors.lastName = 'Last name is required';
     if (!values.email.trim() || !/^\S+@\S+\.\S+$/.test(values.email)) errors.email = 'Enter a valid email';
-    if (!values.company.trim()) errors.company = 'Company is required';
+    if (!values.company.trim()) errors.company = isCompany ? 'Company name is required' : 'Company is required';
     setLocalErrors(errors);
     return Object.keys(errors).length === 0;
   }
 
   async function handleSubmit() {
     if (!validate()) return;
-    await onSubmit(values);
+    await onSubmit(buildPayload());
+  }
+
+  /**
+   * Only the fields the API accepts. The form is seeded from a whole lead (ids, stage history, populated
+   * users...), and the update endpoint rejects unknown fields, so those must not be sent back.
+   */
+  function buildPayload(): LeadFormValues {
+    const v = values as LeadFormValues & { assignedTo?: unknown };
+    const assignee = v.assignedTo && typeof v.assignedTo === 'object' ? ((v.assignedTo as { id?: string; _id?: string }).id ?? (v.assignedTo as { _id?: string })._id) : v.assignedTo;
+    const payload: Record<string, unknown> = {
+      email: v.email,
+      phone: v.phone,
+      company: v.company,
+      companySize: v.companySize,
+      industry: v.industry,
+      website: v.website,
+      source: v.source,
+      sourceDetails: v.sourceDetails,
+      estimatedBudget: v.estimatedBudget && (v.estimatedBudget.min !== undefined || v.estimatedBudget.max !== undefined) ? { min: v.estimatedBudget.min, max: v.estimatedBudget.max, currency: v.estimatedBudget.currency } : undefined,
+      expectedTimeline: v.expectedTimeline,
+      requirements: v.requirements,
+      notes: v.notes,
+      tags: v.tags,
+      priority: v.priority,
+      // Non-admins can only own their leads, and the API refuses any other assignee: leave it out for them.
+      ...(isAdmin ? { assignedTo: assignee ?? null } : {}),
+      // A company lead has no person's name or job title; an individual's type is fixed once created.
+      ...(isCompany ? {} : { firstName: v.firstName, lastName: v.lastName, jobTitle: v.jobTitle }),
+      ...(typeLocked ? {} : { leadType: v.leadType }),
+    };
+    return payload as unknown as LeadFormValues;
   }
 
   const errors = { ...localErrors, ...fieldErrors };
 
   return (
     <div className="flex flex-col gap-4">
+      {!typeLocked && (
+        <div role="radiogroup" aria-label="Lead type" className="grid grid-cols-2 gap-1 rounded-card border-2 border-navaro-green bg-white p-1">
+          {(['individual', 'company'] as const).map((t) => {
+            const Icon = t === 'individual' ? UserRound : Building2;
+            const selected = values.leadType === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => set('leadType', t)}
+                className={clsx(
+                  'flex h-11 items-center justify-center gap-2 rounded-control text-sm font-medium transition-colors',
+                  selected ? 'bg-navaro-green text-navaro-heath' : 'text-navaro-green hover:bg-navaro-hover'
+                )}
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                {t === 'individual' ? 'Individual' : 'Company'}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="First name" required error={errors.firstName}>
-          {(p) => <Input {...p} value={values.firstName} onChange={(e) => set('firstName', e.target.value)} />}
-        </Field>
-        <Field label="Last name" required error={errors.lastName}>
-          {(p) => <Input {...p} value={values.lastName} onChange={(e) => set('lastName', e.target.value)} />}
-        </Field>
+        {!isCompany && (
+          <>
+            <Field label="First name" required error={errors.firstName}>
+              {(p) => <Input {...p} value={values.firstName} onChange={(e) => set('firstName', e.target.value)} />}
+            </Field>
+            <Field label="Last name" required={!typeLocked} error={errors.lastName}>
+              {(p) => <Input {...p} value={values.lastName} onChange={(e) => set('lastName', e.target.value)} />}
+            </Field>
+          </>
+        )}
         <Field label="Email" required error={errors.email}>
           {(p) => <Input {...p} type="email" value={values.email} onChange={(e) => set('email', e.target.value)} />}
         </Field>
         <Field label="Phone" error={errors.phone}>
           {(p) => <Input {...p} value={values.phone ?? ''} onChange={(e) => set('phone', e.target.value)} />}
         </Field>
-        <Field label="Company" required error={errors.company}>
+        <Field label={isCompany ? 'Company name' : 'Company'} required error={errors.company}>
           {(p) => <Input {...p} value={values.company} onChange={(e) => set('company', e.target.value)} />}
         </Field>
-        <Field label="Job title" error={errors.jobTitle}>
-          {(p) => <Input {...p} value={values.jobTitle ?? ''} onChange={(e) => set('jobTitle', e.target.value)} />}
-        </Field>
+        {!isCompany && (
+          <Field label="Job title" error={errors.jobTitle}>
+            {(p) => <Input {...p} value={values.jobTitle ?? ''} onChange={(e) => set('jobTitle', e.target.value)} />}
+          </Field>
+        )}
         <Field label="Source" error={errors.source}>
           {(p) => (
             <Select {...p} value={values.source ?? ''} onChange={(e) => set('source', e.target.value as never)}>

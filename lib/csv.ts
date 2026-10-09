@@ -1,4 +1,4 @@
-export const MAX_IMPORT_ROWS = 1000;
+export const MAX_IMPORT_ROWS = 5000;
 
 /** Minimal RFC-4180 CSV parser: quoted fields, escaped quotes, CRLF/LF, embedded newlines. */
 export function parseCsv(text: string): string[][] {
@@ -48,31 +48,36 @@ export function parseCsv(text: string): string[][] {
 export const LEAD_IMPORT_FIELDS = {
   firstName: ['firstname', 'first', 'givenname', 'forename'],
   lastName: ['lastname', 'last', 'surname', 'familyname'],
+  /** One cell holding the whole name ("Contact Person", "Name"); split into first/last on the server. */
+  contactPerson: ['contactperson', 'contactname', 'contact', 'fullname', 'name', 'person', 'leadname'],
   email: ['email', 'emailaddress', 'mail', 'workemail'],
   phone: ['phone', 'phonenumber', 'mobile', 'mobilenumber', 'tel', 'telephone', 'cell'],
   company: ['company', 'companyname', 'organization', 'organisation', 'account'],
-  jobTitle: ['jobtitle', 'title', 'position', 'role'],
+  jobTitle: ['jobtitle', 'title', 'position', 'role', 'designation'],
   website: ['website', 'url', 'web', 'site'],
   industry: ['industry', 'sector'],
   source: ['source', 'leadsource'],
+  segment: ['segment', 'category'],
   notes: ['notes', 'note', 'comments', 'comment', 'description'],
 } as const;
 
 export type LeadImportField = keyof typeof LEAD_IMPORT_FIELDS;
-export const REQUIRED_IMPORT_FIELDS: LeadImportField[] = ['firstName', 'lastName', 'email', 'phone'];
+/** Every row needs these... */
+export const REQUIRED_IMPORT_FIELDS: LeadImportField[] = ['email', 'phone'];
 export const REQUIRED_IMPORT_LABELS: Record<string, string> = {
-  firstName: 'First name',
-  lastName: 'Last name',
   email: 'Email',
   phone: 'Phone',
 };
+/** ...and something to identify the lead: a person's name, or a company name (see lib/lead-import.ts). */
+export const IDENTITY_COLUMNS_LABEL = "Company name, or a person's name (First name + Last name, or Contact person)";
 
 const normalizeHeader = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 export interface ParsedLeadCsv {
   /** Canonical-keyed rows, ready to send to the import API. */
   rows: Record<string, string>[];
-  missingColumns: LeadImportField[];
+  /** Human-readable names of required columns the file does not have. */
+  missingColumns: string[];
   ignoredColumns: string[];
 }
 
@@ -88,7 +93,9 @@ export function parseLeadCsv(text: string): ParsedLeadCsv {
   });
 
   const present = new Set(columnField.filter(Boolean) as LeadImportField[]);
-  const missingColumns = REQUIRED_IMPORT_FIELDS.filter((f) => !present.has(f));
+  const missingColumns: string[] = REQUIRED_IMPORT_FIELDS.filter((f) => !present.has(f)).map((f) => REQUIRED_IMPORT_LABELS[f]);
+  const hasPersonColumns = (present.has('firstName') && present.has('lastName')) || present.has('contactPerson');
+  if (!present.has('company') && !hasPersonColumns) missingColumns.push(IDENTITY_COLUMNS_LABEL);
   const ignoredColumns = header.filter((_, i) => !columnField[i]).map((h) => h.trim()).filter(Boolean);
 
   const rows = body.map((cells) => {

@@ -89,7 +89,7 @@ const BillingAddressSchema = new Schema<ClientBillingAddress>(
 const ContactSchema = new Schema<ClientContact>(
   {
     firstName: { type: String, required: true, trim: true, maxlength: 50 },
-    lastName: { type: String, required: true, trim: true, maxlength: 50 },
+    lastName: { type: String, trim: true, maxlength: 50 }, // may be blank (a lead with a single-word name converts to a contact with only a first name)
     email: { type: String, required: true, lowercase: true, trim: true },
     phone: { type: String, trim: true },
     jobTitle: { type: String, trim: true },
@@ -102,7 +102,7 @@ const ContactSchema = new Schema<ClientContact>(
 
 const ClientSchema = new Schema<ClientDocument>(
   {
-    companyName: { type: String, required: true, trim: true, maxlength: 120 },
+    companyName: { type: String, required: true, trim: true, maxlength: 200 },
     displayName: { type: String, trim: true },
     industry: { type: String, trim: true },
     companySize: { type: String, enum: COMPANY_SIZES },

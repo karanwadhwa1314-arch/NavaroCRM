@@ -33,6 +33,7 @@ interface AssignableUser {
 
 interface LeadDetail {
   id: string;
+  leadType?: 'individual' | 'company';
   firstName: string;
   lastName: string;
   fullName: string;
@@ -167,7 +168,7 @@ export function LeadDetailClient({ lead, assignableUsers }: { lead: LeadDetail; 
           <div>
             <h1 className="text-h1 text-navaro-green">{lead.fullName}</h1>
             <p className="mt-1 text-body text-navaro-muted">
-              {lead.company}
+              {lead.leadType === 'company' ? 'Company lead' : lead.company}
               {lead.jobTitle ? ` · ${lead.jobTitle}` : ''}
             </p>
           </div>
@@ -321,6 +322,7 @@ export function LeadDetailClient({ lead, assignableUsers }: { lead: LeadDetail; 
       <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit lead" size="lg" preventClose={submitting}>
         <LeadForm
           initial={lead as unknown as LeadFormValues}
+          typeLocked
           onSubmit={handleEdit}
           onCancel={() => setEditOpen(false)}
           submitting={submitting}

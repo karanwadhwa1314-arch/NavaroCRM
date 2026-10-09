@@ -14,8 +14,10 @@ import { formatDate } from '@/lib/format';
 
 export interface LeadRow {
   id: string;
+  leadType?: import('@/lib/constants').LeadType;
   fullName: string;
   email: string;
+  phone?: string;
   company: string;
   stage: import('@/lib/constants').LeadStage;
   priority: import('@/lib/constants').Priority;
@@ -26,6 +28,8 @@ export interface LeadRow {
 
 interface LeadTableProps {
   items: LeadRow[];
+  /** Which kind of lead is listed: companies get the company name as their main column. */
+  type: import('@/lib/constants').LeadType;
   onEdit: (lead: LeadRow) => void;
   onDelete: (lead: LeadRow) => void;
   sort: string;
@@ -33,9 +37,10 @@ interface LeadTableProps {
   onSort: (field: string) => void;
 }
 
-export function LeadTable({ items, onEdit, onDelete, sort, order, onSort }: LeadTableProps) {
+export function LeadTable({ items, type, onEdit, onDelete, sort, order, onSort }: LeadTableProps) {
   const { can } = useSession();
   const router = useRouter();
+  const companies = type === 'company';
 
   return (
     <>
@@ -43,10 +48,18 @@ export function LeadTable({ items, onEdit, onDelete, sort, order, onSort }: Lead
         <Table>
           <TableHead>
             <tr>
-              <TableHeaderCell>Lead</TableHeaderCell>
-              <TableHeaderCell onClick={() => onSort('company')}>
-                Company {sort === 'company' && (order === 'asc' ? '↑' : '↓')}
-              </TableHeaderCell>
+              {companies ? (
+                <TableHeaderCell onClick={() => onSort('company')}>
+                  Company {sort === 'company' && (order === 'asc' ? '↑' : '↓')}
+                </TableHeaderCell>
+              ) : (
+                <>
+                  <TableHeaderCell>Lead</TableHeaderCell>
+                  <TableHeaderCell onClick={() => onSort('company')}>
+                    Company {sort === 'company' && (order === 'asc' ? '↑' : '↓')}
+                  </TableHeaderCell>
+                </>
+              )}
               <TableHeaderCell>Stage</TableHeaderCell>
               <TableHeaderCell>Priority</TableHeaderCell>
               <TableHeaderCell>Assigned to</TableHeaderCell>
@@ -62,22 +75,41 @@ export function LeadTable({ items, onEdit, onDelete, sort, order, onSort }: Lead
                 lead.convertedToClient && typeof lead.convertedToClient === 'object' ? lead.convertedToClient : null;
               return (
                 <TableRow key={lead.id} onClick={() => router.push(`/leads/${lead.id}`)}>
-                  <TableCell>
-                    <p className="font-medium">{lead.fullName}</p>
-                    <p className="text-label text-navaro-muted">{lead.email}</p>
-                  </TableCell>
-                  <TableCell>
-                    {lead.company}
-                    {convertedClient && (
-                      <Link
-                        href={`/clients/${convertedClient.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="ml-2 inline-block"
-                      >
-                        <Badge tone="turquoiseSolid">Converted</Badge>
-                      </Link>
-                    )}
-                  </TableCell>
+                  {companies ? (
+                    <TableCell>
+                      <p className="font-medium">
+                        {lead.company}
+                        {convertedClient && (
+                          <Link href={`/clients/${convertedClient.id}`} onClick={(e) => e.stopPropagation()} className="ml-2 inline-block">
+                            <Badge tone="turquoiseSolid">Converted</Badge>
+                          </Link>
+                        )}
+                      </p>
+                      <p className="text-label text-navaro-muted">
+                        {lead.email}
+                        {lead.phone ? ` · ${lead.phone}` : ''}
+                      </p>
+                    </TableCell>
+                  ) : (
+                    <>
+                      <TableCell>
+                        <p className="font-medium">{lead.fullName}</p>
+                        <p className="text-label text-navaro-muted">{lead.email}</p>
+                      </TableCell>
+                      <TableCell>
+                        {lead.company}
+                        {convertedClient && (
+                          <Link
+                            href={`/clients/${convertedClient.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="ml-2 inline-block"
+                          >
+                            <Badge tone="turquoiseSolid">Converted</Badge>
+                          </Link>
+                        )}
+                      </TableCell>
+                    </>
+                  )}
                   <TableCell>
                     <LeadStageBadge stage={lead.stage} />
                   </TableCell>
@@ -134,8 +166,8 @@ export function LeadTable({ items, onEdit, onDelete, sort, order, onSort }: Lead
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-medium text-navaro-green">{lead.fullName}</p>
-                <p className="text-label text-navaro-muted">{lead.company}</p>
+                <p className="font-medium text-navaro-green">{companies ? lead.company : lead.fullName}</p>
+                <p className="text-label text-navaro-muted">{companies ? lead.email : lead.company}</p>
               </div>
               <LeadStageBadge stage={lead.stage} />
             </div>

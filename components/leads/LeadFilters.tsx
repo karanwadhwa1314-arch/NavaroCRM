@@ -44,7 +44,8 @@ export function LeadFilters({ users }: { users: AssignableUser[] }) {
 
   function clearAll() {
     setSearch('');
-    navigate(pathname);
+    // keep the Individuals / Companies choice
+    navigate(searchParams.get('type') === 'company' ? `${pathname}?type=company` : pathname);
   }
 
   return (
@@ -52,7 +53,7 @@ export function LeadFilters({ users }: { users: AssignableUser[] }) {
       <div className="relative w-full sm:w-64">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navaro-muted" />
         <Input
-          placeholder="Search leads"
+          placeholder={searchParams.get('type') === 'company' ? 'Search companies' : 'Search leads'}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"

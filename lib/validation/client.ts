@@ -58,7 +58,7 @@ const optionalContactSchema = z
   );
 
 export const createClientSchema = z.object({
-  companyName: z.string().trim().min(1).max(120),
+  companyName: z.string().trim().min(1).max(200),
   displayName: z.string().trim().max(120).optional(),
   industry: z.string().trim().max(100).optional(),
   companySize: emptyToUndefined(z.enum(COMPANY_SIZES)),
@@ -80,7 +80,7 @@ export type CreateClientInput = z.infer<typeof createClientSchema>;
 
 export const updateClientSchema = z
   .object({
-    companyName: z.string().trim().min(1).max(120).optional(),
+    companyName: z.string().trim().min(1).max(200).optional(),
     displayName: z.string().trim().max(120).optional(),
     industry: z.string().trim().max(100).optional(),
     companySize: emptyToUndefined(z.enum(COMPANY_SIZES)),

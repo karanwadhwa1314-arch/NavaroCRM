@@ -17,6 +17,7 @@ import { LeadForm, type LeadFormValues } from '@/components/leads/LeadForm';
 import { useSession } from '@/components/providers/SessionProvider';
 import { api, ApiError } from '@/lib/api-client';
 import { isAdmin } from '@/lib/permissions';
+import type { LeadType } from '@/lib/constants';
 import type { Pagination as PaginationData } from '@/lib/api/response';
 
 interface AssignableUser {
@@ -30,9 +31,11 @@ interface LeadsClientProps {
   pagination: PaginationData;
   assignableUsers: AssignableUser[];
   hasFilters: boolean;
+  /** The kind of lead being listed (the Individuals / Companies switch). */
+  type: LeadType;
 }
 
-export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: LeadsClientProps) {
+export function LeadsClient({ items, pagination, assignableUsers, hasFilters, type }: LeadsClientProps) {
   const { user, can } = useSession();
   const router = useRouter();
   const pathname = usePathname();
@@ -47,6 +50,10 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const admin = isAdmin({ role: user.role, permissions: user.permissions });
+  const noun = type === 'company' ? 'company' : 'lead';
+
+  // "Clear filters" clears the filters, not the Individuals / Companies choice.
+  const clearFilters = () => navigate(type === 'company' ? `${pathname}?type=company` : pathname);
 
   function updatePage(page: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -131,7 +138,7 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
               <Upload className="h-4 w-4" /> Import CSV
             </Button>
             <Button onClick={() => setCreateOpen(true)}>
-              <Plus className="h-4 w-4" /> Add lead
+              <Plus className="h-4 w-4" /> {type === 'company' ? 'Add company' : 'Add lead'}
             </Button>
           </div>
         )}
@@ -140,15 +147,21 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
       {items.length === 0 ? (
         <EmptyState
           icon={Inbox}
-          title={hasFilters ? 'No leads match these filters' : 'No leads yet'}
-          body={hasFilters ? 'Try a different search or clear your filters.' : 'Add your first lead to get started.'}
+          title={hasFilters ? `No ${noun === 'company' ? 'companies' : 'leads'} match these filters` : type === 'company' ? 'No company leads yet' : 'No leads yet'}
+          body={
+            hasFilters
+              ? 'Try a different search or clear your filters.'
+              : type === 'company'
+                ? 'Add a company, or import a CSV that has company names without a contact person.'
+                : 'Add your first lead to get started.'
+          }
           action={
             hasFilters ? (
-              <Button variant="secondary" onClick={() => navigate(pathname)}>
+              <Button variant="secondary" onClick={clearFilters}>
                 Clear filters
               </Button>
             ) : can('leads.create') ? (
-              <Button onClick={() => setCreateOpen(true)}>Add lead</Button>
+              <Button onClick={() => setCreateOpen(true)}>{type === 'company' ? 'Add company' : 'Add lead'}</Button>
             ) : undefined
           }
         />
@@ -156,6 +169,7 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
         <>
           <LeadTable
             items={items}
+            type={type}
             onEdit={(lead) => setEditLead(lead)}
             onDelete={(lead) => setDeleteLead(lead)}
             sort={searchParams.get('sort') ?? 'createdAt'}
@@ -172,6 +186,7 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Add lead" size="lg" preventClose={submitting}>
         <LeadForm
+          defaultType={type}
           onSubmit={handleCreate}
           onCancel={() => setCreateOpen(false)}
           submitting={submitting}
@@ -192,6 +207,7 @@ export function LeadsClient({ items, pagination, assignableUsers, hasFilters }: 
         {editLead && (
           <LeadForm
             initial={editLead as unknown as LeadFormValues}
+            typeLocked
             onSubmit={handleEdit}
             onCancel={() => setEditLead(null)}
             submitting={submitting}

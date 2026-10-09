@@ -5,6 +5,7 @@ import * as leads from '@/services/leads';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // a 5,000-row import validates, de-duplicates and inserts in one request
 
 // Same guard as POST /api/leads: importing is just bulk creation.
 export const POST = withRoute({ permission: 'leads.create', body: importLeadsBodySchema }, async ({ actor, body }) => {

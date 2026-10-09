@@ -10,6 +10,14 @@ export const LEAD_STAGE_LABELS: Record<LeadStage, string> = {
 };
 export const LEAD_STAGE_PIPELINE_ORDER: LeadStage[] = ['new', 'qualified', 'proposal', 'negotiation', 'won'];
 
+/** An individual lead is a person (optionally at a company); a company lead is just an organisation, with no person's name. */
+export const LEAD_TYPES = ['individual', 'company'] as const;
+export type LeadType = (typeof LEAD_TYPES)[number];
+export const LEAD_TYPE_LABELS: Record<LeadType, string> = {
+  individual: 'Individuals',
+  company: 'Companies',
+};
+
 export const LEAD_SOURCES = [
   'website',
   'referral',

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   LEAD_SOURCES,
   LEAD_STAGES,
+  LEAD_TYPES,
   PRIORITIES,
   TIMELINES,
   COMPANY_SIZES,
@@ -24,12 +25,10 @@ const estimatedBudgetSchema = z
   .optional();
 
 const baseLeadFields = {
-  firstName: z.string().trim().min(1).max(50),
-  lastName: z.string().trim().min(1).max(50),
   email: z.string().trim().toLowerCase().email(),
   phone: z.string().trim().max(30).optional(),
   jobTitle: z.string().trim().max(100).optional(),
-  company: z.string().trim().min(1).max(120),
+  company: z.string().trim().min(1).max(200),
   companySize: emptyToUndefined(z.enum(COMPANY_SIZES)),
   industry: z.string().trim().max(100).optional(),
   website: z.string().trim().max(200).optional(),
@@ -44,13 +43,31 @@ const baseLeadFields = {
   priority: emptyToUndefined(z.enum(PRIORITIES)),
 };
 
-export const createLeadSchema = z.object(baseLeadFields);
+const optionalName = z.string().trim().max(50).optional();
+
+/**
+ * An individual needs a first and last name. A company lead is just the organisation: its name is `company`
+ * and any person's name sent along is discarded.
+ */
+export const createLeadSchema = z
+  .object({ ...baseLeadFields, leadType: z.enum(LEAD_TYPES).default('individual'), firstName: optionalName, lastName: optionalName })
+  .superRefine((v, ctx) => {
+    if (v.leadType === 'company') return;
+    if (!v.firstName) ctx.addIssue({ code: 'custom', path: ['firstName'], message: 'First name is required' });
+    if (!v.lastName) ctx.addIssue({ code: 'custom', path: ['lastName'], message: 'Last name is required' });
+  })
+  .transform((v) => (v.leadType === 'company' ? { ...v, firstName: undefined, lastName: undefined, jobTitle: undefined } : v));
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
 
+/** The lead type can't be changed after creation (company leads have no person; individuals do), so it is not accepted here. */
 export const updateLeadSchema = z
-  .object(
-    Object.fromEntries(Object.entries(baseLeadFields).map(([k, v]) => [k, (v as z.ZodTypeAny).optional()]))
-  )
+  .object({
+    ...(Object.fromEntries(Object.entries(baseLeadFields).map(([k, v]) => [k, (v as z.ZodTypeAny).optional()])) as {
+      [K in keyof typeof baseLeadFields]: z.ZodOptional<(typeof baseLeadFields)[K]>;
+    }),
+    firstName: z.string().trim().min(1).max(50).optional(),
+    lastName: z.string().trim().max(50).optional(), // may be blank: imported single-word names have a first name only
+  })
   .strict();
 export type UpdateLeadInput = z.infer<typeof updateLeadSchema>;
 
@@ -75,6 +92,8 @@ export const leadListQuerySchema = z.object({
   page: pageSchema,
   limit: limitSchema(),
   search: z.string().trim().max(100).optional(),
+  /** Which kind of lead to list. Unknown values fall back to individuals rather than 400ing a bookmarked URL. */
+  type: fallbackEnum(LEAD_TYPES, 'individual'),
   stage: z.enum(LEAD_STAGES).optional(),
   source: z.enum(LEAD_SOURCES).optional(),
   priority: z.enum(PRIORITIES).optional(),
@@ -90,15 +109,18 @@ export type LeadListQuery = z.infer<typeof leadListQuerySchema>;
 
 /** One CSV row after client-side header mapping. Validated again here — the API is authoritative. */
 export const importLeadRowSchema = z.object({
-  firstName: z.string().trim().min(1, 'First name is required').max(50),
-  lastName: z.string().trim().min(1, 'Last name is required').max(50),
+  // Who the row is (a person, or just a company) is decided by classifyRow() in lib/lead-import.ts.
+  firstName: z.string().trim().max(50).optional(),
+  lastName: z.string().trim().max(50).optional(),
+  contactPerson: z.string().trim().max(200).optional(),
   email: z.string().trim().toLowerCase().email('Email is not valid'),
   phone: z.string().trim().min(1, 'Phone is required').max(30),
-  company: z.string().trim().max(120).optional(),
+  company: z.string().trim().max(200).optional(),
   jobTitle: z.string().trim().max(100).optional(),
   website: z.string().trim().max(200).optional(),
   industry: z.string().trim().max(100).optional(),
   source: z.string().trim().optional(),
+  segment: z.string().trim().optional(),
   notes: z.string().trim().max(5000).optional(),
 });
 export type ImportLeadRow = z.infer<typeof importLeadRowSchema>;

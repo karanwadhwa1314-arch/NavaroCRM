@@ -18,7 +18,9 @@ describe('csv parsing', () => {
   });
 
   it('reports missing required columns', () => {
-    expect(parseLeadCsv('First Name,Email\nA,a@x.com').missingColumns).toEqual(['lastName', 'phone']);
+    expect(parseLeadCsv('First Name,Email\nA,a@x.com').missingColumns).toEqual(['Phone', expect.stringContaining('Company name')]);
+    expect(parseLeadCsv('Company,Email\nAcme,a@x.com').missingColumns).toEqual(['Phone']);
+    expect(parseLeadCsv('Contact Person,Email,Phone\nA B,a@x.com,1').missingColumns).toEqual([]);
   });
 
   it('rejects an unclosed quote', () => {

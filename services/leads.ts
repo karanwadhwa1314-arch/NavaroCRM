@@ -7,7 +7,8 @@ import { recordAudit } from '@/services/audit';
 import { serializeClient } from '@/services/clients';
 import { sendEmail, leadAssignedEmail } from '@/lib/email';
 import { isAdmin } from '@/lib/permissions';
-import { LEAD_SOURCES, type LeadSource } from '@/lib/constants';
+import { LEAD_SOURCES, type LeadSource, type LeadType } from '@/lib/constants';
+import { classifyRow } from '@/lib/lead-import';
 import { importLeadRowSchema } from '@/lib/validation/lead';
 import type { SessionUser } from '@/lib/auth/session';
 import type {
@@ -16,7 +17,6 @@ import type {
   UpdateLeadStageInput,
   AddLeadActivityInput,
   LeadListQuery,
-  ImportLeadRow,
 } from '@/lib/validation/lead';
 
 const NAME_COLLATION = { locale: 'en', strength: 2 } as const;
@@ -25,6 +25,7 @@ export function serializeLead(lead: LeadDocument) {
   const obj = lead.toObject({ virtuals: true });
   return {
     id: String(obj._id),
+    leadType: (obj.leadType ?? 'individual') as LeadType,
     firstName: obj.firstName,
     lastName: obj.lastName,
     fullName: obj.fullName,
@@ -67,6 +68,23 @@ function assertEditable(lead: LeadDocument) {
   }
 }
 
+/**
+ * Leads created before `leadType` existed have no value and are individuals, so "individual" is "anything that isn't a company"
+ * rather than leadType === 'individual'.
+ */
+function typeFilter(type?: LeadType): Record<string, unknown> {
+  if (type === 'company') return { leadType: 'company' };
+  if (type === 'individual') return { leadType: { $ne: 'company' } };
+  return {};
+}
+
+/** Active lead counts per type — the numbers on the Individuals / Companies switch. */
+export async function typeCounts(): Promise<Record<LeadType, number>> {
+  const rows = await Lead.aggregate([{ $match: { isActive: true } }, { $group: { _id: { $ifNull: ['$leadType', 'individual'] }, count: { $sum: 1 } } }]);
+  const by = Object.fromEntries(rows.map((r) => [r._id, r.count]));
+  return { individual: by.individual ?? 0, company: by.company ?? 0 };
+}
+
 export async function list(actor: SessionUser, query: LeadListQuery) {
   const { page, limit, skip } = parsePagination(new URLSearchParams({ page: String(query.page), limit: String(query.limit) }));
   const filter: Record<string, unknown> = { isActive: true };
@@ -75,6 +93,7 @@ export async function list(actor: SessionUser, query: LeadListQuery) {
     const re = new RegExp(escapeRegex(query.search), 'i');
     filter.$or = [{ firstName: re }, { lastName: re }, { email: re }, { company: re }, { phone: re }];
   }
+  Object.assign(filter, typeFilter(query.type));
   if (query.stage) filter.stage = query.stage;
   if (query.source) filter.source = query.source;
   if (query.priority) filter.priority = query.priority;
@@ -118,6 +137,7 @@ export async function get(id: string, includeInactive = false) {
 }
 
 export async function create(actor: SessionUser, input: CreateLeadInput) {
+  // (createLeadSchema already drops names/job title for company leads.)
   const assignedTo = isAdmin(actor) ? input.assignedTo ?? undefined : actor.id;
 
   const lead = new Lead({
@@ -163,7 +183,9 @@ export async function update(actor: SessionUser, id: string, input: UpdateLeadIn
 
   const previousAssignee = lead.assignedTo ? String(lead.assignedTo) : undefined;
 
+  const isCompanyLead = lead.leadType === 'company';
   for (const [key, value] of Object.entries(input)) {
+    if (isCompanyLead && (key === 'firstName' || key === 'lastName' || key === 'jobTitle')) continue; // a company lead has no person
     if (value !== undefined) (lead as unknown as Record<string, unknown>)[key] = value;
   }
 
@@ -258,8 +280,8 @@ export async function remove(actor: SessionUser, id: string): Promise<{ hardDele
   return { hardDeleted: hardDelete };
 }
 
-export async function stats() {
-  const filter = { isActive: true };
+export async function stats(type?: LeadType) {
+  const filter: Record<string, unknown> = { isActive: true, ...typeFilter(type) };
   const twelveMonthsAgo = new Date();
   twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
   twelveMonthsAgo.setDate(1);
@@ -320,11 +342,14 @@ export async function convertToClient(actor: SessionUser, leadId: string): Promi
   const existing = await findExistingConversion(lead);
   if (existing) return existing;
 
-  if (!lead.company || !lead.firstName || !lead.lastName || !lead.email) {
-    throw new AppError(400, 'Company, first name, last name and email are required to convert this lead');
+  const isCompanyLead = lead.leadType === 'company';
+  if (!lead.company || !lead.email || (!isCompanyLead && !lead.firstName)) {
+    throw new AppError(400, isCompanyLead ? 'Company and email are required to convert this lead' : 'Company, first name and email are required to convert this lead');
   }
 
   const notesParts: string[] = [];
+  // A client contact must be a person. A company lead has none, so its email/phone are kept in the notes instead.
+  if (isCompanyLead) notesParts.push(`Contact: ${lead.email}${lead.phone ? ` · ${lead.phone}` : ''}`);
   if (lead.requirements) notesParts.push(`Requirements:\n${lead.requirements}`);
   if (lead.notes) notesParts.push(lead.notes);
   if (lead.estimatedBudget?.min !== undefined || lead.estimatedBudget?.max !== undefined) {
@@ -337,16 +362,18 @@ export async function convertToClient(actor: SessionUser, leadId: string): Promi
     industry: lead.industry,
     companySize: lead.companySize,
     website: lead.website,
-    contacts: [
-      {
-        firstName: lead.firstName,
-        lastName: lead.lastName,
-        email: lead.email,
-        phone: lead.phone,
-        jobTitle: lead.jobTitle,
-        isPrimary: true,
-      },
-    ],
+    contacts: isCompanyLead
+      ? []
+      : [
+          {
+            firstName: lead.firstName,
+            lastName: lead.lastName || undefined,
+            email: lead.email,
+            phone: lead.phone,
+            jobTitle: lead.jobTitle,
+            isPrimary: true,
+          },
+        ],
     source: 'lead_conversion' as const,
     convertedFromLead: lead._id,
     accountManager: lead.assignedTo,
@@ -471,15 +498,33 @@ export interface ImportRowResult {
   reason?: string;
 }
 
+/** A few rows that will be imported, so the preview can show how each one was read (person or company). */
+export interface ImportSample {
+  line: number;
+  type: LeadType;
+  name: string;
+  company: string;
+  email: string;
+}
+
 export interface ImportLeadsResult {
   total: number;
   valid: number;
+  /** Of the valid rows: how many are people and how many are companies without a person. */
+  individuals: number;
+  companies: number;
   invalid: number;
   duplicates: number;
   imported: number;
   dryRun: boolean;
+  /** Only rows with a problem (invalid / duplicate), at most MAX_PROBLEM_ROWS — a 5,000-row file would otherwise be a huge response. */
   rows: ImportRowResult[];
+  problemsTruncated: boolean;
+  samples: ImportSample[];
 }
+
+const MAX_PROBLEM_ROWS = 500;
+const INSERT_CHUNK = 1000;
 
 function matchSource(raw?: string): LeadSource {
   const n = (raw ?? '').toLowerCase().replace(/[^a-z]/g, '');
@@ -487,66 +532,110 @@ function matchSource(raw?: string): LeadSource {
   return (hit as LeadSource | undefined) ?? 'other';
 }
 
+interface PlannedLead {
+  line: number;
+  type: LeadType;
+  firstName: string;
+  lastName: string;
+  company: string;
+  displayName: string;
+  email: string;
+  phone: string;
+  jobTitle?: string;
+  website?: string;
+  industry?: string;
+  source?: string;
+  segment?: string;
+  notes?: string;
+}
+
 /**
- * Validates every row, skips duplicates (same email as an active lead, or an earlier row
- * in the same file), and — unless dryRun — persists the rest. Ownership follows create():
- * non-admins own what they import; admins' imports start unassigned.
+ * Validates every row, works out whether each is a person or a company (classifyRow), skips duplicates
+ * (same email as an active lead, or an earlier row in the same file) and — unless dryRun — persists the
+ * rest. Ownership follows create(): non-admins own what they import; admins' imports start unassigned.
  */
 export async function importLeads(actor: SessionUser, rawRows: Record<string, string>[], dryRun: boolean): Promise<ImportLeadsResult> {
-  const results: ImportRowResult[] = [];
-  const parsed: { line: number; data: ImportLeadRow }[] = [];
+  const problems: ImportRowResult[] = [];
+  let invalid = 0;
+  let duplicates = 0;
+  const planned: PlannedLead[] = [];
+
+  const noteProblem = (row: ImportRowResult) => {
+    if (row.status === 'invalid') invalid++;
+    else duplicates++;
+    if (problems.length < MAX_PROBLEM_ROWS) problems.push(row);
+  };
+  const rawName = (raw: Record<string, string>) =>
+    `${raw.firstName ?? ''} ${raw.lastName ?? ''}`.trim() || raw.contactPerson?.trim() || raw.company?.trim() || '';
 
   rawRows.forEach((raw, i) => {
     const line = i + 2;
     const r = importLeadRowSchema.safeParse(raw);
     if (!r.success) {
-      results.push({
-        line,
-        name: `${raw.firstName ?? ''} ${raw.lastName ?? ''}`.trim(),
-        email: raw.email ?? '',
-        status: 'invalid',
-        reason: Array.from(new Set(r.error.issues.map((x) => x.message))).join('; '),
-      });
-    } else {
-      parsed.push({ line, data: r.data });
+      noteProblem({ line, name: rawName(raw), email: raw.email ?? '', status: 'invalid', reason: Array.from(new Set(r.error.issues.map((x) => x.message))).join('; ') });
+      return;
     }
+    const d = r.data;
+    const who = classifyRow(d);
+    if (!who.ok) {
+      noteProblem({ line, name: rawName(raw), email: d.email, status: 'invalid', reason: who.reason });
+      return;
+    }
+    const notes = [d.notes, who.note].filter(Boolean).join('\n\n');
+    planned.push({
+      line,
+      type: who.type,
+      firstName: who.firstName,
+      lastName: who.lastName,
+      company: who.company,
+      displayName: who.displayName,
+      email: d.email,
+      phone: d.phone,
+      jobTitle: d.jobTitle || undefined,
+      website: d.website || undefined,
+      industry: d.industry || undefined,
+      source: d.source,
+      segment: d.segment ? d.segment.slice(0, 40) : undefined,
+      notes: notes || undefined,
+    });
   });
 
-  const emails = Array.from(new Set(parsed.map((p) => p.data.email)));
-  const existing = new Set(
-    (await Lead.find({ isActive: true, email: { $in: emails } }).select('email').lean()).map((l) => l.email)
-  );
+  const emails = Array.from(new Set(planned.map((p) => p.email)));
+  const existing = new Set<string>();
+  for (let i = 0; i < emails.length; i += 2000) {
+    const found = await Lead.find({ isActive: true, email: { $in: emails.slice(i, i + 2000) } }).select('email').lean();
+    found.forEach((l) => existing.add(l.email));
+  }
 
   const seen = new Set<string>();
-  const toCreate: ImportLeadRow[] = [];
-  for (const { line, data } of parsed) {
-    const name = `${data.firstName} ${data.lastName}`;
-    if (existing.has(data.email)) {
-      results.push({ line, name, email: data.email, status: 'duplicate', reason: 'A lead with this email already exists' });
-    } else if (seen.has(data.email)) {
-      results.push({ line, name, email: data.email, status: 'duplicate', reason: 'Repeated earlier in this file' });
+  const toCreate: PlannedLead[] = [];
+  for (const p of planned) {
+    if (existing.has(p.email)) {
+      noteProblem({ line: p.line, name: p.displayName, email: p.email, status: 'duplicate', reason: 'A lead with this email already exists' });
+    } else if (seen.has(p.email)) {
+      noteProblem({ line: p.line, name: p.displayName, email: p.email, status: 'duplicate', reason: 'Repeated earlier in this file' });
     } else {
-      seen.add(data.email);
-      toCreate.push(data);
-      results.push({ line, name, email: data.email, status: 'valid' });
+      seen.add(p.email);
+      toCreate.push(p);
     }
   }
-  results.sort((a, b) => a.line - b.line);
+  problems.sort((a, b) => a.line - b.line);
 
   let imported = 0;
   if (!dryRun && toCreate.length > 0) {
     const assignedTo = isAdmin(actor) ? undefined : actor.id;
     const docs = toCreate.map((d) => ({
-      firstName: d.firstName,
-      lastName: d.lastName,
+      leadType: d.type,
+      firstName: d.firstName || undefined,
+      lastName: d.lastName || undefined,
       email: d.email,
       phone: d.phone,
-      // Lead.company is required by the model; fall back to the person's name when the CSV has no company column.
-      company: d.company || `${d.firstName} ${d.lastName}`,
-      jobTitle: d.jobTitle || undefined,
-      website: d.website || undefined,
-      industry: d.industry || undefined,
-      notes: d.notes || undefined,
+      company: d.company,
+      jobTitle: d.jobTitle,
+      website: d.website,
+      industry: d.industry,
+      notes: d.notes,
+      tags: d.segment ? [d.segment] : [],
       source: matchSource(d.source),
       sourceDetails: 'CSV import',
       assignedTo,
@@ -554,19 +643,25 @@ export async function importLeads(actor: SessionUser, rawRows: Record<string, st
       stageHistory: [{ stage: 'new', changedAt: new Date(), changedBy: actor.id }],
       activities: [{ type: 'note', description: 'Lead imported from CSV', user: actor.id }],
     }));
-    const inserted = await Lead.insertMany(docs, { ordered: false });
-    imported = inserted.length;
+    for (let i = 0; i < docs.length; i += INSERT_CHUNK) {
+      const inserted = await Lead.insertMany(docs.slice(i, i + INSERT_CHUNK), { ordered: false });
+      imported += inserted.length;
+    }
     await recordAudit({ user: actor.id, action: 'create', entity: 'lead', description: `Imported ${imported} leads from CSV` });
   }
 
-  const count = (s: ImportRowResult['status']) => results.filter((r) => r.status === s).length;
+  const companies = toCreate.filter((p) => p.type === 'company').length;
   return {
     total: rawRows.length,
-    valid: count('valid'),
-    invalid: count('invalid'),
-    duplicates: count('duplicate'),
+    valid: toCreate.length,
+    individuals: toCreate.length - companies,
+    companies,
+    invalid,
+    duplicates,
     imported,
     dryRun,
-    rows: results,
+    rows: problems,
+    problemsTruncated: invalid + duplicates > problems.length,
+    samples: toCreate.slice(0, 8).map((p) => ({ line: p.line, type: p.type, name: p.displayName, company: p.company, email: p.email })),
   };
 }

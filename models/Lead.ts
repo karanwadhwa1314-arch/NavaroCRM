@@ -6,6 +6,7 @@ import {
   TIMELINES,
   COMPANY_SIZES,
   ACTIVITY_TYPES,
+  LEAD_TYPES,
   CURRENCIES,
   type LeadStage,
   type LeadSource,
@@ -13,6 +14,7 @@ import {
   type Timeline,
   type CompanySize,
   type ActivityType,
+  type LeadType,
 } from '@/lib/constants';
 
 export interface LeadStageHistoryEntry {
@@ -31,7 +33,13 @@ export interface LeadActivity {
 }
 
 export interface LeadDocument extends Document {
+  /**
+   * 'individual' (default; also what documents created before this field existed are) or 'company'. A company lead is
+   * an organisation with no person's name: firstName/lastName are left blank and `company` is its name.
+   */
+  leadType: LeadType;
   firstName: string;
+  /** May be blank: a single-word contact name is stored as a first name only. */
   lastName: string;
   email: string;
   phone?: string;
@@ -84,12 +92,18 @@ const ActivitySchema = new Schema<LeadActivity>(
 
 const LeadSchema = new Schema<LeadDocument>(
   {
-    firstName: { type: String, required: true, trim: true, maxlength: 50 },
-    lastName: { type: String, required: true, trim: true, maxlength: 50 },
+    leadType: { type: String, enum: LEAD_TYPES, default: 'individual' },
+    firstName: {
+      type: String,
+      required: [function (this: LeadDocument) { return this.leadType !== 'company'; }, 'First name is required'],
+      trim: true,
+      maxlength: 50,
+    },
+    lastName: { type: String, trim: true, maxlength: 50 },
     email: { type: String, required: true, lowercase: true, trim: true },
     phone: { type: String, trim: true },
     jobTitle: { type: String, trim: true },
-    company: { type: String, required: true, trim: true, maxlength: 120 },
+    company: { type: String, required: true, trim: true, maxlength: 200 },
     companySize: { type: String, enum: COMPANY_SIZES },
     industry: { type: String, trim: true },
     website: { type: String, trim: true },
@@ -120,7 +134,8 @@ const LeadSchema = new Schema<LeadDocument>(
 );
 
 LeadSchema.virtual('fullName').get(function (this: LeadDocument) {
-  return `${this.firstName} ${this.lastName}`.trim();
+  // A company lead has no person's name, so the company is its name wherever a lead is shown by name.
+  return `${this.firstName ?? ''} ${this.lastName ?? ''}`.trim() || this.company;
 });
 
 LeadSchema.set('toJSON', {
@@ -132,6 +147,7 @@ LeadSchema.set('toJSON', {
 });
 
 LeadSchema.index({ isActive: 1, stage: 1, createdAt: -1 });
+LeadSchema.index({ isActive: 1, leadType: 1, createdAt: -1 });
 LeadSchema.index({ assignedTo: 1, isActive: 1 });
 LeadSchema.index({ email: 1 });
 LeadSchema.index({ convertedToClient: 1 }, { sparse: true });
