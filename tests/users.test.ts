@@ -106,7 +106,7 @@ describe('users service', () => {
 
     const updated = await usersService.changeRole(toActor(superadmin), String(member._id), 'admin');
     expect(updated.permissions.sort()).toEqual(
-      ['leads.view', 'leads.create', 'leads.edit', 'leads.delete', 'clients.view', 'clients.create', 'clients.edit', 'clients.delete'].sort()
+      ['leads.view', 'leads.create', 'leads.edit', 'leads.delete', 'clients.view', 'clients.create', 'clients.edit', 'clients.delete', 'projects.view', 'projects.create', 'projects.edit', 'projects.delete'].sort()
     );
   });
 

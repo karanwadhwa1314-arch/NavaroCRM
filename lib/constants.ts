@@ -124,8 +124,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 };
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   superadmin: 'Full access, including user management',
-  admin: 'Full access to leads and clients',
-  member: 'Leads and clients; permissions adjustable',
+  admin: 'Full access to leads, clients and projects',
+  member: 'Leads, clients and projects; permissions adjustable',
 };
 
 export const AUDIT_ACTIONS = [
@@ -140,7 +140,7 @@ export const AUDIT_ACTIONS = [
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export const AUDIT_ENTITIES = ['user', 'lead', 'client', 'auth', 'broadcast'] as const;
+export const AUDIT_ENTITIES = ['user', 'lead', 'client', 'auth', 'broadcast', 'project'] as const;
 
 export const BROADCAST_STATUSES = ['draft', 'scheduled', 'sending', 'sent', 'failed'] as const;
 export type BroadcastStatus = (typeof BROADCAST_STATUSES)[number];
@@ -152,3 +152,66 @@ export const BROADCAST_STATUS_LABELS: Record<BroadcastStatus, string> = {
   failed: 'Failed',
 };
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
+
+export const PROJECT_STATUSES = ['planning', 'in_progress', 'on_hold', 'review', 'completed', 'cancelled'] as const;
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  planning: 'Planning',
+  in_progress: 'In progress',
+  on_hold: 'On hold',
+  review: 'Review',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+/** Statuses whose projects count towards the health summary (work is still live). */
+export const PROJECT_LIVE_STATUSES: ProjectStatus[] = ['planning', 'in_progress', 'review'];
+
+/** Roles a person can hold on a project team (trade-oriented; Flare's were software-delivery roles). */
+export const PROJECT_TEAM_ROLES = [
+  'project_manager',
+  'coordinator',
+  'sourcing',
+  'logistics',
+  'compliance',
+  'finance',
+  'consultant',
+] as const;
+export type ProjectTeamRole = (typeof PROJECT_TEAM_ROLES)[number];
+export const PROJECT_TEAM_ROLE_LABELS: Record<ProjectTeamRole, string> = {
+  project_manager: 'Project manager',
+  coordinator: 'Coordinator',
+  sourcing: 'Sourcing',
+  logistics: 'Logistics',
+  compliance: 'Compliance',
+  finance: 'Finance',
+  consultant: 'Consultant',
+};
+
+export const CARD_STATUSES = ['todo', 'in_progress', 'done'] as const;
+export type CardStatus = (typeof CARD_STATUSES)[number];
+export const CARD_STATUS_LABELS: Record<CardStatus, string> = {
+  todo: 'To do',
+  in_progress: 'In progress',
+  done: 'Done',
+};
+
+export const CARD_RECURRENCE_TYPES = ['none', 'daily', 'weekly', 'monthly'] as const;
+export type CardRecurrenceType = (typeof CARD_RECURRENCE_TYPES)[number];
+export const CARD_RECURRENCE_LABELS: Record<CardRecurrenceType, string> = {
+  none: 'Does not repeat',
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+};
+
+/** Done cards are removed this many days after completion (nightly job). */
+export const DONE_CARD_RETENTION_DAYS = 10;
+
+export const PROJECT_HEALTH_LEVELS = ['perfect', 'good', 'average', 'critical'] as const;
+export type ProjectHealthLevel = (typeof PROJECT_HEALTH_LEVELS)[number];
+export const PROJECT_HEALTH_LABELS: Record<ProjectHealthLevel, string> = {
+  perfect: 'Perfect',
+  good: 'Good',
+  average: 'Average',
+  critical: 'Critical',
+};

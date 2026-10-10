@@ -14,9 +14,13 @@ describe('permissions', () => {
     expect(hasPermission(user, 'clients.view', 'users.view')).toBe(false);
   });
 
-  it('role defaults: admin and member both get leads.* and clients.* only', () => {
+  it('role defaults: admin and member both get leads.*, clients.* and projects.* only', () => {
     expect(ROLE_DEFAULTS.admin.sort()).toEqual(
-      ['leads.view', 'leads.create', 'leads.edit', 'leads.delete', 'clients.view', 'clients.create', 'clients.edit', 'clients.delete'].sort()
+      [
+        'leads.view', 'leads.create', 'leads.edit', 'leads.delete',
+        'clients.view', 'clients.create', 'clients.edit', 'clients.delete',
+        'projects.view', 'projects.create', 'projects.edit', 'projects.delete',
+      ].sort()
     );
     expect(ROLE_DEFAULTS.member.sort()).toEqual(ROLE_DEFAULTS.admin.sort());
   });

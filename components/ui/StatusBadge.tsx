@@ -4,6 +4,10 @@ import {
   PRIORITY_LABELS,
   CLIENT_STATUS_LABELS,
   CLIENT_TIER_LABELS,
+  PROJECT_STATUS_LABELS,
+  CARD_STATUS_LABELS,
+  type ProjectStatus,
+  type CardStatus,
   type LeadStage,
   type Priority,
   type ClientStatus,
@@ -47,4 +51,27 @@ export function ClientStatusBadge({ status }: { status: ClientStatus }) {
 
 export function ClientTierBadge({ tier }: { tier: ClientTier }) {
   return <Badge tone="outline">{CLIENT_TIER_LABELS[tier]}</Badge>;
+}
+
+const PROJECT_STATUS_TONE: Record<ProjectStatus, BadgeTone> = {
+  planning: 'lavenderSolid',
+  in_progress: 'turquoiseSolid',
+  on_hold: 'yellowSolid',
+  review: 'lavender',
+  completed: 'green',
+  cancelled: 'outline',
+};
+
+const CARD_STATUS_TONE: Record<CardStatus, BadgeTone> = {
+  todo: 'neutral',
+  in_progress: 'turquoiseSolid',
+  done: 'green',
+};
+
+export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
+  return <Badge tone={PROJECT_STATUS_TONE[status]}>{PROJECT_STATUS_LABELS[status]}</Badge>;
+}
+
+export function CardStatusBadge({ status }: { status: CardStatus }) {
+  return <Badge tone={CARD_STATUS_TONE[status]}>{CARD_STATUS_LABELS[status]}</Badge>;
 }

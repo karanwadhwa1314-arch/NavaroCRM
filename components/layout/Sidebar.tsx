@@ -4,7 +4,7 @@ import { Fragment } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Dialog, Transition } from '@headlessui/react';
-import { LayoutDashboard, Target, Building2, Users, Mail, LogOut } from 'lucide-react';
+import { LayoutDashboard, Target, Building2, FolderKanban, Users, Mail, LogOut } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Logo } from '@/components/layout/Logo';
 import { Avatar } from '@/components/ui/Avatar';
@@ -27,6 +27,7 @@ function useNavItems(): { main: NavItem[]; admin: NavItem[] } {
       { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, show: true },
       { href: '/leads', label: 'Leads', icon: Target, show: can('leads.view') },
       { href: '/clients', label: 'Clients', icon: Building2, show: can('clients.view') },
+      { href: '/projects', label: 'Projects', icon: FolderKanban, show: can('projects.view') },
       { href: '/broadcasts', label: 'Broadcasts', icon: Mail, show: can('broadcasts.view') },
     ],
     admin: [{ href: '/users', label: 'User management', icon: Users, show: can('users.view') }],

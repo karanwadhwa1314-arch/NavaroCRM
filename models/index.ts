@@ -5,3 +5,5 @@ export { default as AuditLog } from './AuditLog';
 export { default as Broadcast } from './Broadcast';
 export { default as BroadcastDelivery } from './BroadcastDelivery';
 export { default as BroadcastAttachment } from './BroadcastAttachment';
+export { default as Project } from './Project';
+export { default as ProjectCard } from './ProjectCard';

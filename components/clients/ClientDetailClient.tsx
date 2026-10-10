@@ -44,7 +44,7 @@ interface ClientDetail {
   createdAt: string;
 }
 
-export function ClientDetailClient({ client }: { client: ClientDetail }) {
+export function ClientDetailClient({ client, projectsSlot }: { client: ClientDetail; projectsSlot?: React.ReactNode }) {
   const { can, user } = useSession();
   const router = useRouter();
 
@@ -221,6 +221,8 @@ export function ClientDetailClient({ client }: { client: ClientDetail }) {
               />
             </div>
           </Card>
+
+          {projectsSlot}
 
           {client.notes && (
             <Card>

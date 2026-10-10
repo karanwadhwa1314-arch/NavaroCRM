@@ -13,6 +13,10 @@ export const PERMISSIONS = [
   'users.create',
   'users.edit',
   'users.delete',
+  'projects.view',
+  'projects.create',
+  'projects.edit',
+  'projects.delete',
   'broadcasts.view',
   'broadcasts.create',
   'broadcasts.edit',
@@ -24,12 +28,13 @@ export type Permission = (typeof PERMISSIONS)[number];
 const LEADS_ALL: Permission[] = ['leads.view', 'leads.create', 'leads.edit', 'leads.delete'];
 const CLIENTS_ALL: Permission[] = ['clients.view', 'clients.create', 'clients.edit', 'clients.delete'];
 const USERS_ALL: Permission[] = ['users.view', 'users.create', 'users.edit', 'users.delete'];
+const PROJECTS_ALL: Permission[] = ['projects.view', 'projects.create', 'projects.edit', 'projects.delete'];
 const BROADCASTS_ALL: Permission[] = ['broadcasts.view', 'broadcasts.create', 'broadcasts.edit', 'broadcasts.delete', 'broadcasts.send'];
 
 /** superadmin permissions are inherent and are never stored on the user document. */
 export const ROLE_DEFAULTS: Record<Exclude<UserRole, 'superadmin'>, Permission[]> = {
-  admin: [...LEADS_ALL, ...CLIENTS_ALL],
-  member: [...LEADS_ALL, ...CLIENTS_ALL],
+  admin: [...LEADS_ALL, ...CLIENTS_ALL, ...PROJECTS_ALL],
+  member: [...LEADS_ALL, ...CLIENTS_ALL, ...PROJECTS_ALL],
 };
 
 export function roleDefaultPermissions(role: UserRole): Permission[] {
@@ -50,6 +55,10 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   'users.create': 'Create users',
   'users.edit': 'Edit users',
   'users.delete': 'Delete users',
+  'projects.view': 'View projects',
+  'projects.create': 'Create projects',
+  'projects.edit': 'Edit projects and manage cards and team',
+  'projects.delete': 'Delete projects and cards',
   'broadcasts.view': 'View broadcasts',
   'broadcasts.create': 'Create broadcasts',
   'broadcasts.edit': 'Edit broadcasts',
@@ -60,6 +69,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
 export const PERMISSION_GROUPS: { group: string; perms: Permission[] }[] = [
   { group: 'Leads', perms: LEADS_ALL },
   { group: 'Clients', perms: CLIENTS_ALL },
+  { group: 'Projects', perms: PROJECTS_ALL },
   { group: 'Users', perms: USERS_ALL },
   { group: 'Broadcasts', perms: BROADCASTS_ALL },
 ];

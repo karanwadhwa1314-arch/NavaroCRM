@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Client, { type ClientDocument } from '@/models/Client';
 import Lead from '@/models/Lead';
+import Project from '@/models/Project';
 import { AppError, conflict } from '@/lib/api/errors';
 import { escapeRegex, parsePagination } from '@/lib/api/query';
 import { recordAudit } from '@/services/audit';
@@ -257,6 +258,13 @@ export async function remove(actor: SessionUser, id: string): Promise<{ hardDele
   const hardDelete = actor.role === 'superadmin';
 
   if (hardDelete) {
+    // A project can't outlive its client: its name and code are built from the client's name.
+    const projectCount = await Project.countDocuments({ client: client._id });
+    if (projectCount > 0) {
+      throw conflict(
+        `${client.companyName} has ${projectCount} ${projectCount === 1 ? 'project' : 'projects'}. Delete or archive ${projectCount === 1 ? 'it' : 'them'} first.`
+      );
+    }
     await client.deleteOne();
     if (client.convertedFromLead) {
       const lead = await Lead.findById(client.convertedFromLead);

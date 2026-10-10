@@ -1,6 +1,6 @@
 # Navaro CRM
 
-A focused CRM for Navaro, an import-export and global trade business: leads, clients and user management.
+A focused CRM for Navaro, an import-export and global trade business: leads, clients, projects, broadcasts and user management.
 
 Next.js 14 (App Router) · TypeScript (strict) · Tailwind CSS · MongoDB (Mongoose) · deployed on Vercel.
 
@@ -46,10 +46,10 @@ See `.env.example`. `MONGODB_URI` and `JWT_SECRET` (≥32 chars) are required to
 
 Three roles: `superadmin`, `admin`, `member`.
 
-- **Permissions** are explicit strings on each user: `leads.{view,create,edit,delete}`, `clients.{view,create,edit,delete}`, `users.{view,create,edit,delete}`. A user needs *any one* of the permissions a route/page asks for.
+- **Permissions** are explicit strings on each user: `leads.{view,create,edit,delete}`, `clients.{view,create,edit,delete}`, `projects.{view,create,edit,delete}`, `users.{view,create,edit,delete}`. A user needs *any one* of the permissions a route/page asks for.
 - **Superadmin** permissions are inherent — never stored, always pass every check — and only a superadmin may create, edit, promote/demote, or set the permissions of another superadmin. The last active superadmin can't be demoted or deactivated.
-- **Admin** and **member** both default to `leads.*` + `clients.*`; a role change resets permissions back to that role's defaults. A superadmin may hand a `member`/`admin` a custom permission set at creation, or edit it later from the Permissions modal in User management.
-- Non-admins are auto-assigned as the owner (`assignedTo` on leads, `accountManager` on clients) when they create a record, and cannot reassign a record to someone else.
+- **Admin** and **member** both default to `leads.*` + `clients.*` + `projects.*`; a role change resets permissions back to that role's defaults. A superadmin may hand a `member`/`admin` a custom permission set at creation, or edit it later from the Permissions modal in User management.
+- Non-admins are auto-assigned as the owner (`assignedTo` on leads, `accountManager` on clients, `projectManager` on projects) when they create a record, and cannot reassign a record to someone else.
 - Enforcement happens twice: `middleware.ts` (Edge) checks the session cookie's signature/expiry and redirects unauthenticated requests; every route handler and server page additionally calls `requireUser`/`requirePermission`, which reloads the user from the database and checks `isActive` and `tokenVersion`. The UI hides actions a user can't perform, but the server is what actually enforces it.
 
 ## Brand asset pipeline
@@ -61,6 +61,20 @@ Three roles: `superadmin`, `admin`, `member`.
 A lead is either an **individual** (a person, optionally at a company) or a **company** (an organisation with no person's name). Both live in the one `leads` collection, so stages, activities, assignment, conversion to a client, search and broadcasts work the same for both; `Lead.leadType` (`'individual'` default, `'company'`) tells them apart, and company leads leave `firstName`/`lastName` blank. Documents saved before the field existed have no value and count as individuals (`typeFilter()` in `services/leads.ts`). The Leads page has a large Individuals / Companies switch (`?type=company`) with counts. A company lead converts to a client with no contact person (its email/phone go into the client's notes). The type can't be changed after creation.
 
 **CSV import** (up to 5,000 rows, 2 MB): every row needs an Email and a Phone, plus a person's name (First name + Last name, or one "Contact person"/"Name" column) or a Company name. `lib/lead-import.ts` decides what each row is: a person's name makes an individual (the company is where they work; a single-word name is stored as a first name only; ALL-CAPS / all-lowercase names are tidied to Title Case); a company name with no person, or a contact cell that is clearly a business (Pvt Ltd, Logistics, …), makes a company lead. A contact cell that just repeats a person-style name is a person (sole proprietors). Designation → job title, Segment → a tag, Note → notes; other columns are ignored. Duplicates (same email as an active lead, or earlier in the file) are skipped. The preview shows how many people vs companies were found and how the first rows were read.
+
+## Projects
+
+Client work, tracked as projects made of **cards** (sidebar → Projects). Permissions are `projects.view/create/edit/delete`; they are in the admin/member defaults, but users created before the module existed keep the permission set stored on them, so a superadmin grants `projects.*` from Users → Permissions (superadmins always have it). Full details, and how this maps to the Flare CRM reference, are in [`docs/PROJECTS_MODULE.md`](docs/PROJECTS_MODULE.md).
+
+- **Naming:** a project's name is `<Client-name>-<Motive>` (the client's company name with spaces → hyphens, plus a motive of at least 3 letters) and its code is `<CLI>-<MOT>-<nnn>` (3 letters from the client, 3 from the motive, running number). Names are unique among active projects (case-insensitive). The code is issued once and never changes, even if the motive is edited.
+- **Lifecycle:** `planning → in progress → on hold → review → completed / cancelled`. **End project** sets `completed`, stamps the end date and makes the project, its cards and team read-only until **Restart project** (which reopens it as in progress).
+- **Cards:** To do / In progress / Done, each with at least one assignee drawn from the project's team or its project manager. Moving to In progress needs a deadline; a Done card can't be edited; cards can repeat daily, weekly or monthly (finishing one creates the next). Done cards are deleted after 10 days.
+- **Health:** every project starts at 100%. Each unfinished card past its deadline costs 5%, plus 5% for every further full day overdue (floor 20%). At the floor no new cards can be added. Levels: perfect (100), good (80+), average (40+), critical. The projects list is ordered least healthy first by default.
+- **Team:** people with a role per project. Someone still on open cards can't be removed from the team; reassign their cards first.
+- **Deleting:** a superadmin deletes the project and its cards; anyone else archives it (hidden, status cancelled, name reusable). A client that still has projects can't be hard-deleted.
+- **Card assignment email:** each newly assigned person gets an email (skipped when `RESEND_API_KEY` is unset, and never sent to yourself).
+- **Clean-up job:** `.github/workflows/project-card-cleanup.yml` calls `GET /api/cron/project-cards` daily (Bearer `CRON_SECRET`, the same secret and `APP_URL` repository secrets as the broadcast scheduler) to delete Done cards older than 10 days.
+- **Indexes:** run `npm run db:sync-indexes` once after deploying (new `projects` and `projectcards` collections).
 
 ## Broadcasts
 

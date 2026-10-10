@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 interface KpiCardProps {
   label: string;
   value: number | string;
-  accent: 'green' | 'turquoise' | 'yellow' | 'lavender';
+  accent: 'green' | 'turquoise' | 'yellow' | 'lavender' | 'danger';
 }
 
 const accentClasses: Record<KpiCardProps['accent'], string> = {
@@ -11,6 +11,7 @@ const accentClasses: Record<KpiCardProps['accent'], string> = {
   turquoise: 'bg-navaro-turquoise',
   yellow: 'bg-navaro-yellow',
   lavender: 'bg-navaro-lavender',
+  danger: 'bg-danger',
 };
 
 export function KpiCard({ label, value, accent }: KpiCardProps) {

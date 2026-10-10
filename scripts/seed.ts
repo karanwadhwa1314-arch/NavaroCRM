@@ -7,6 +7,8 @@ import { connectDB } from '@/lib/db';
 import User, { type UserDocument } from '@/models/User';
 import Lead from '@/models/Lead';
 import Client from '@/models/Client';
+import Project from '@/models/Project';
+import ProjectCard from '@/models/ProjectCard';
 import AuditLog from '@/models/AuditLog';
 import Broadcast from '@/models/Broadcast';
 import BroadcastDelivery from '@/models/BroadcastDelivery';
@@ -158,6 +160,66 @@ async function seedDemo(superadmin: UserDocument) {
   console.log(`Created ${otherClients.length + (wonLead ? 1 : 0)} demo clients`);
 }
 
+/** Two fictional projects with a spread of card states, so the Projects pages have something to show. */
+async function seedDemoProjects(superadmin: UserDocument) {
+  if (await Project.exists({})) {
+    console.log('Projects already present; skipping demo projects.');
+    return;
+  }
+  const amina = await User.findOne({ email: DEMO_MARKER_EMAIL });
+  const farid = await User.findOne({ email: 'farid.rahman@example.com' });
+  const vantage = await Client.findOne({ companyName: 'Vantage Marine Supply' });
+  const ironclad = await Client.findOne({ companyName: 'Ironclad Freight Alliance' });
+  if (!amina || !farid || !vantage || !ironclad) {
+    console.log('Demo users/clients not found; skipping demo projects.');
+    return;
+  }
+
+  const day = 24 * 60 * 60 * 1000;
+  const ago = (d: number) => new Date(Date.now() - d * day);
+  const inDays = (d: number) => new Date(Date.now() + d * day);
+
+  const onTrack = await Project.create({
+    name: 'Vantage-Marine-Supply-Port clearance',
+    code: 'VAN-POR-001',
+    client: vantage._id,
+    description: 'Customs clearance and inland haulage for the Q3 equipment shipment.',
+    status: 'in_progress',
+    priority: 'high',
+    startDate: ago(30),
+    projectManager: farid._id,
+    team: [
+      { user: amina._id, role: 'logistics' },
+      { user: farid._id, role: 'project_manager' },
+    ],
+    activities: [{ type: 'created', description: 'Project created', user: superadmin._id }],
+    createdBy: superadmin._id,
+  });
+  const slipping = await Project.create({
+    name: 'Ironclad-Freight-Alliance-Carrier onboarding',
+    code: 'IRO-CAR-001',
+    client: ironclad._id,
+    description: 'Qualify and onboard three new regional carriers.',
+    status: 'planning',
+    priority: 'urgent',
+    startDate: ago(12),
+    projectManager: amina._id,
+    team: [{ user: farid._id, role: 'compliance' }],
+    activities: [{ type: 'created', description: 'Project created', user: superadmin._id }],
+    createdBy: superadmin._id,
+  });
+
+  await ProjectCard.create([
+    { project: onTrack._id, title: 'Book container slot', status: 'done', doneAt: ago(2), assignees: [amina._id], createdBy: farid._id, deadline: ago(3) },
+    { project: onTrack._id, title: 'Submit customs documents', status: 'in_progress', deadline: inDays(2), assignees: [amina._id, farid._id], createdBy: farid._id, description: 'Bill of lading, packing list and the certificate of origin.' },
+    { project: onTrack._id, title: 'Confirm haulage quote', status: 'todo', assignees: [farid._id], createdBy: farid._id },
+    { project: slipping._id, title: 'Collect carrier insurance certificates', status: 'in_progress', deadline: ago(3), assignees: [farid._id], createdBy: amina._id },
+    { project: slipping._id, title: 'Run sanctions screening', status: 'todo', deadline: ago(1), assignees: [farid._id], createdBy: amina._id },
+    { project: slipping._id, title: 'Weekly status call', status: 'todo', deadline: inDays(5), assignees: [amina._id], createdBy: amina._id, recurrence: { type: 'weekly', daysOfWeek: [4] } },
+  ]);
+  console.log('Created 2 demo projects with cards');
+}
+
 async function main() {
   if (DEMO && process.env.NODE_ENV === 'production') {
     console.error('Refusing to run --demo in production.');
@@ -168,12 +230,13 @@ async function main() {
 
   const superadmin = await seedSuperadmin();
 
-  for (const model of [User, Lead, Client, AuditLog, Broadcast, BroadcastDelivery, BroadcastAttachment]) {
+  for (const model of [User, Lead, Client, Project, ProjectCard, AuditLog, Broadcast, BroadcastDelivery, BroadcastAttachment]) {
     await model.syncIndexes();
   }
 
   if (DEMO) {
     await seedDemo(superadmin);
+    await seedDemoProjects(superadmin);
   }
 
   process.exit(0);

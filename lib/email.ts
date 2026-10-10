@@ -60,3 +60,35 @@ export function leadAssignedEmail(input: LeadAssignedEmailInput): SendEmailInput
     html,
   };
 }
+
+export interface CardAssignedEmailInput {
+  projectId: string;
+  projectName: string;
+  cardTitle: string;
+  cardDescription?: string;
+  deadline?: Date | null;
+  assigneeEmail: string;
+  assigneeFirstName: string;
+  assignedByName: string;
+}
+
+export function cardAssignedEmail(input: CardAssignedEmailInput): SendEmailInput {
+  const appUrl = process.env.APP_URL ?? 'http://localhost:3000';
+  const projectUrl = `${appUrl}/projects/${encodeURIComponent(input.projectId)}`;
+  const deadline = input.deadline ? new Date(input.deadline).toUTCString() : 'No deadline set';
+  const html = layout(
+    'A card was assigned to you',
+    `
+      <p>Hi ${escapeHtml(input.assigneeFirstName)},</p>
+      <p>${escapeHtml(input.assignedByName)} assigned you <strong>${escapeHtml(input.cardTitle)}</strong> in <strong>${escapeHtml(input.projectName)}</strong>.</p>
+      ${input.cardDescription ? `<p>${escapeHtml(input.cardDescription)}</p>` : ''}
+      <p>Deadline: ${escapeHtml(deadline)}</p>
+      <p><a href="${escapeHtml(projectUrl)}" style="color:#054742;">View the project</a></p>
+    `
+  );
+  return {
+    to: input.assigneeEmail,
+    subject: `Card assigned: ${input.cardTitle}`,
+    html,
+  };
+}
